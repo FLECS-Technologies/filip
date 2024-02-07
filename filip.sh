@@ -907,11 +907,11 @@ download_flecs() {
   VERSIONS=(${VERSION_CORE} ${VERSION_WEBAPP})
   for i in ${!PACKAGES[@]}; do
     if [ ! -z "${CURL}" ]; then
-      if ! ${CURL} -fsSL --output - ${BASE_URL}/${DIRS[$i]}//${PKGFORMAT}/${PACKAGES[$i]} >${PACKAGES[$i]}; then
+      if ! ${CURL} -fsSL --output - ${BASE_URL}/${DIRS[$i]}/${VERSIONS[$i]}/${PKGFORMAT}/${PACKAGES[$i]} >${PACKAGES[$i]}; then
         log_fatal "Could not download ${PACKAGES[$i]} through ${CURL}"
       fi
     elif [ ! -z "${WGET}" ]; then
-      if ! ${WGET} -q ${BASE_URL}/${DIRS[$i]}/${PKGFORMAT}/${PACKAGES[$i]}; then
+      if ! ${WGET} -q ${BASE_URL}/${DIRS[$i]}/${VERSIONS[$i]}/${PKGFORMAT}/${PACKAGES[$i]}; then
         log_fatal "Could not download ${PACKAGES[$i]} through ${WGET}"
       fi
     fi
