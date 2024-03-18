@@ -22,6 +22,7 @@ ROOT_DIR=/
 STDOUT=/dev/null
 STDERR=/dev/null
 
+BASE_PROTO=http
 BASE_URL=dl.flecs.tech
 
 print_usage() {
@@ -32,6 +33,7 @@ print_usage() {
   echo "     --no-banner       do not print ${ME} banner"
   echo "     --no-welcome      do not print welcome message"
   echo "     --root-dir <dir>  install files relative do <dir> instead of / (currently .tar only)"
+  echo "     --tls-only        Use TLS directly instead of following https redirects"
   echo "     --help            print this help and exit"
 }
 
@@ -191,6 +193,9 @@ parse_args() {
           print_usage
           exit 1
         fi
+        ;;
+      --tls-only)
+        BASE_PROTO=https
         ;;
       --help)
         print_usage
@@ -379,12 +384,12 @@ verify_tools() {
 check_connectivity() {
   log_info -n "Checking internet connectivity..."
   if [ ! -z "${CURL}" ]; then
-    if ${CURL} ${BASE_URL} 1>${STDOUT} 2>${STDERR}; then
+    if ${CURL} ${BASE_PROTO}://${BASE_URL} 1>${STDOUT} 2>${STDERR}; then
       echo "OK"
       return 0
     fi
  elif [ ! -z "${WGET}" ]; then
-    if ${WGET} -q ${BASE_URL} 1>${STDOUT} 2>${STDERR}; then
+    if ${WGET} -q ${BASE_PROTO}://${BASE_URL} 1>${STDOUT} 2>${STDERR}; then
       echo "OK"
       return 0
     fi
@@ -415,7 +420,7 @@ detect_arch() {
   if [ ! -z "${DPKG}" ]; then
     MACHINE=`${DPKG} --print-architecture`
   elif [ ! -z "${UNAME}" ]; then
-    MACHINE=`${UNAME} -m` 
+    MACHINE=`${UNAME} -m`
   elif [ ! -z "${LDCONFIG}" ] && [ ! -z "${GREP}" ]; then
     MACHINE=`${LDCONFIG} -p | ${GREP} -oP "(?<=\/ld-linux-)[^.]+"`
   fi
@@ -843,12 +848,12 @@ determine_latest_version() {
   log_info -n "Determining latest FLECS version..."
   # try through curl first, if available
   if [ ! -z "${CURL}" ]; then
-    VERSION_CORE=`${CURL} -fsSL ${BASE_URL}/flecs/latest_flecs_${ARCH}`
-    VERSION_WEBAPP=`${CURL} -fsSL ${BASE_URL}/webapp/latest_flecs-webapp_${ARCH}`
+    VERSION_CORE=`${CURL} -fsSL ${BASE_PROTO}://${BASE_URL}/flecs/latest_flecs_${ARCH}`
+    VERSION_WEBAPP=`${CURL} -fsSL ${BASE_PROTO}://${BASE_URL}/webapp/latest_flecs-webapp_${ARCH}`
   # use wget as fallback, if available
   elif [ ! -z "${WGET}" ]; then
-    VERSION_CORE=`${WGET} -q -O - ${BASE_URL}/flecs/latest_flecs_${ARCH}`
-    VERSION_WEBAPP=`${WGET} -q -O - ${BASE_URL}/webapp/latest_flecs-webapp_${ARCH}`
+    VERSION_CORE=`${WGET} -q -O - ${BASE_PROTO}://${BASE_URL}/flecs/latest_flecs_${ARCH}`
+    VERSION_WEBAPP=`${WGET} -q -O - ${BASE_PROTO}://${BASE_URL}/webapp/latest_flecs-webapp_${ARCH}`
   fi
   if [ ! -z "${VERSION_CORE}" ] && [ ! -z "${VERSION_WEBAPP}" ]; then
     echo " OK"
@@ -907,11 +912,11 @@ download_flecs() {
   VERSIONS=(${VERSION_CORE} ${VERSION_WEBAPP})
   for i in ${!PACKAGES[@]}; do
     if [ ! -z "${CURL}" ]; then
-      if ! ${CURL} -fsSL --output - ${BASE_URL}/${DIRS[$i]}/${VERSIONS[$i]}/${PKGFORMAT}/${PACKAGES[$i]} >${PACKAGES[$i]}; then
+      if ! ${CURL} -fsSL --output - ${BASE_PROTO}://${BASE_URL}/${DIRS[$i]}/${VERSIONS[$i]}/${PKGFORMAT}/${PACKAGES[$i]} >${PACKAGES[$i]}; then
         log_fatal "Could not download ${PACKAGES[$i]} through ${CURL}"
       fi
     elif [ ! -z "${WGET}" ]; then
-      if ! ${WGET} -q ${BASE_URL}/${DIRS[$i]}/${VERSIONS[$i]}/${PKGFORMAT}/${PACKAGES[$i]}; then
+      if ! ${WGET} -q ${BASE_PROTO}://${BASE_URL}/${DIRS[$i]}/${VERSIONS[$i]}/${PKGFORMAT}/${PACKAGES[$i]}; then
         log_fatal "Could not download ${PACKAGES[$i]} through ${WGET}"
       fi
     fi
@@ -1118,7 +1123,7 @@ if [ -z "${FLECS_TESTING}" ]; then
       if confirm_yn "Upgrade to docker-ce from official docker.com sources"; then
         install_docker
       else
-        log_fatal "Please upgrade your Docker installation before installing FLECS"  
+        log_fatal "Please upgrade your Docker installation before installing FLECS"
       fi
     else
       log_fatal "Please upgrade your Docker installation before installing FLECS"
