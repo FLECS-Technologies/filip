@@ -32,7 +32,7 @@ print_usage() {
   echo "  -y --yes             assume yes as answer to all prompts (unattended mode)"
   echo "     --no-banner       do not print ${ME} banner"
   echo "     --no-welcome      do not print welcome message"
-  echo "     --root-dir <dir>  install files relative do <dir> instead of / (currently .tar only)"
+  echo "     --root-dir <dir>  install files relative do <dir> instead of / (currently .tar.gz only)"
   echo "     --tls-only        Use TLS directly instead of following https redirects"
   echo "     --help            print this help and exit"
 }
@@ -339,7 +339,7 @@ install_program() {
 # detect which tools are available on the system
 detect_tools() {
   log_debug "Checking availability of required tools..."
-  TOOLS=(apt-get apt-key curl docker docker-compose docker-init dpkg grep gpg head ldconfig mktemp opkg pacman rpm sed sort tar systemctl uname update-rc.d wget yum)
+  TOOLS=(apt-get apt-key curl docker docker-compose docker-init dpkg grep gpg gz head ldconfig mktemp opkg pacman rpm sed sort tar systemctl uname update-rc.d wget yum)
   for TOOL in ${TOOLS[@]}; do
     have ${TOOL}
   done
@@ -875,6 +875,7 @@ guess_package_format() {
       ;;
     arch)
       PKGFORMAT=tar
+      PKGEXT=".gz"
       ;;
     other)
       if [ ! -z "${APT_GET}" ] || [ ! -z "${DPKG}" ] || [ ! -z "${OPKG}" ]; then
@@ -905,9 +906,9 @@ download_flecs() {
   if ! cd ${DOWNLOAD_DIR}; then
     log_fatal "Could not cd to ${DOWNLOAD_DIR}"
   fi
-  log_info "Downloading FLECS as ${PKGFORMAT}"
+  log_info "Downloading FLECS as ${PKGFORMAT}${PKGEXT}"
 
-  PACKAGES=(flecs_${VERSION_CORE}_${ARCH}.${PKGFORMAT} flecs-webapp_${VERSION_WEBAPP}_${ARCH}.${PKGFORMAT})
+  PACKAGES=(flecs_${VERSION_CORE}_${ARCH}.${PKGFORMAT}${PKGEXT} flecs-webapp_${VERSION_WEBAPP}_${ARCH}.${PKGFORMAT}${PKGEXT})
   DIRS=(flecs webapp)
   VERSIONS=(${VERSION_CORE} ${VERSION_WEBAPP})
   for i in ${!PACKAGES[@]}; do
