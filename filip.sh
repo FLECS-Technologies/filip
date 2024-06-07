@@ -32,7 +32,7 @@ print_usage() {
   echo "  -y --yes             assume yes as answer to all prompts (unattended mode)"
   echo "     --no-banner       do not print ${ME} banner"
   echo "     --no-welcome      do not print welcome message"
-  echo "     --root-dir <dir>  install files relative do <dir> instead of / (currently .tar.gz only)"
+  echo "     --root-dir <dir>  install files relative do <dir> instead of / (currently .tgz only)"
   echo "     --tls-only        Use TLS directly instead of following https redirects"
   echo "     --help            print this help and exit"
 }
@@ -874,8 +874,7 @@ guess_package_format() {
       PKGFORMAT=rpm
       ;;
     arch)
-      PKGFORMAT=tar
-      PKGEXT=".gz"
+      PKGFORMAT=tgz
       ;;
     other)
       if [ ! -z "${APT_GET}" ] || [ ! -z "${DPKG}" ] || [ ! -z "${OPKG}" ]; then
@@ -883,9 +882,9 @@ guess_package_format() {
       elif [ ! -z "${RPM}" ]; then
         PKGFORMAT=rpm
       elif [ ! -z "${TAR}" ]; then
-        PKGFORMAT=tar
+        PKGFORMAT=tgz
       else
-        log_fatal "Cannot find suitable package format in (deb|rpm|tar)"
+        log_fatal "Cannot find suitable package format in (deb|rpm|tgz)"
       fi
       ;;
   esac
@@ -906,9 +905,9 @@ download_flecs() {
   if ! cd ${DOWNLOAD_DIR}; then
     log_fatal "Could not cd to ${DOWNLOAD_DIR}"
   fi
-  log_info "Downloading FLECS as ${PKGFORMAT}${PKGEXT}"
+  log_info "Downloading FLECS as ${PKGFORMAT}"
 
-  PACKAGES=(flecs_${VERSION_CORE}_${ARCH}.${PKGFORMAT}${PKGEXT} flecs-webapp_${VERSION_WEBAPP}_${ARCH}.${PKGFORMAT}${PKGEXT})
+  PACKAGES=(flecs_${VERSION_CORE}_${ARCH}.${PKGFORMAT} flecs-webapp_${VERSION_WEBAPP}_${ARCH}.${PKGFORMAT})
   DIRS=(flecs webapp)
   VERSIONS=(${VERSION_CORE} ${VERSION_WEBAPP})
   for i in ${!PACKAGES[@]}; do
@@ -963,8 +962,8 @@ install_flecs() {
       log_info -q " rpm"
       log_fatal "rpm package format is currently unsupported"
       ;;
-    tar)
-      log_info -q " tar"
+    tgz)
+      log_info -q " tgz"
       for PACKAGE in "${PACKAGES[@]}"; do
         if [ ! -z "${SYSTEMCTL}" ]; then
           #systemd
