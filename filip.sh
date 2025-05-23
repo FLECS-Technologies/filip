@@ -28,13 +28,15 @@ BASE_URL=dl.flecs.tech
 print_usage() {
   echo "Usage: ${SCRIPTNAME}" [options]
   echo
-  echo "  -d --debug           print additional debug messages"
-  echo "  -y --yes             assume yes as answer to all prompts (unattended mode)"
-  echo "     --no-banner       do not print ${ME} banner"
-  echo "     --no-welcome      do not print welcome message"
-  echo "     --root-dir <dir>  install files relative do <dir> instead of / (currently .tgz only)"
-  echo "     --tls-only        Use TLS directly instead of following https redirects"
-  echo "     --help            print this help and exit"
+  echo "  -d --debug                 print additional debug messages"
+  echo "  -y --yes                   assume yes as answer to all prompts (unattended mode)"
+  echo "     --no-banner             do not print ${ME} banner"
+  echo "     --no-welcome            do not print welcome message"
+  echo "     --root-dir <dir>        install files relative do <dir> instead of / (currently .tgz only)"
+  echo "     --tls-only              Use TLS directly instead of following https redirects"
+  echo "     --core-version <ver>    Install version <ver> of flecs-core instead of the latest version"
+  echo "     --webapp-version <ver>  Install version <ver> of flecs-webapp instead of the latest version"
+  echo "     --help                  print this help and exit"
 }
 
 # some log functions...
@@ -189,6 +191,24 @@ parse_args() {
         ROOT_DIR=${2}
         if [ -z "${ROOT_DIR}" ]; then
           log_error "argument --root-dir requires a value"
+          log_error -q
+          print_usage
+          exit 1
+        fi
+        ;;
+      --core-version)
+        VERSION_CORE=${2}
+        if [ -z "${VERSION_CORE}" ]; then
+          log_error "argument --core-version requires a value"
+          log_error -q
+          print_usage
+          exit 1
+        fi
+        ;;
+      --webapp-version)
+        VERSION_WEBAPP=${2}
+        if [ -z "${VERSION_WEBAPP}" ]; then
+          log_error "argument --webapp-version requires a value"
           log_error -q
           print_usage
           exit 1
@@ -845,23 +865,55 @@ start_docker() {
 }
 
 determine_latest_version() {
-  log_info -n "Determining latest FLECS version..."
-  # try through curl first, if available
-  if [ ! -z "${CURL}" ]; then
-    VERSION_CORE=`${CURL} -fsSL ${BASE_PROTO}://${BASE_URL}/flecs/latest_flecs_${ARCH}`
-    VERSION_WEBAPP=`${CURL} -fsSL ${BASE_PROTO}://${BASE_URL}/webapp/latest_flecs-webapp_${ARCH}`
-  # use wget as fallback, if available
-  elif [ ! -z "${WGET}" ]; then
-    VERSION_CORE=`${WGET} -q -O - ${BASE_PROTO}://${BASE_URL}/flecs/latest_flecs_${ARCH}`
-    VERSION_WEBAPP=`${WGET} -q -O - ${BASE_PROTO}://${BASE_URL}/webapp/latest_flecs-webapp_${ARCH}`
+  if [ -z "${VERSION_CORE}" ]; then
+    determine_latest_core_version
+  else
+    log_debug "Using user provided core version: ${VERSION_CORE}"
+  fi
+  if [ -z "${VERSION_WEBAPP}" ]; then
+    determine_latest_webapp_version
+  else
+    log_debug "Using user provided webapp version: ${VERSION_WEBAPP}"
   fi
   if [ ! -z "${VERSION_CORE}" ] && [ ! -z "${VERSION_WEBAPP}" ]; then
-    echo " OK"
     log_info "    Core: ${VERSION_CORE}"
     log_info "    WebApp: ${VERSION_WEBAPP}"
   else
+    log_fatal "Could not determine version of FLECS to install"
+  fi
+}
+
+determine_latest_webapp_version() {
+  log_info -n "Determining latest FLECS webapp version..."
+  # try through curl first, if available
+  if [ ! -z "${CURL}" ]; then
+    VERSION_WEBAPP=`${CURL} -fsSL ${BASE_PROTO}://${BASE_URL}/webapp/latest_flecs-webapp_${ARCH}`
+  # use wget as fallback, if available
+  elif [ ! -z "${WGET}" ]; then
+    VERSION_WEBAPP=`${WGET} -q -O - ${BASE_PROTO}://${BASE_URL}/webapp/latest_flecs-webapp_${ARCH}`
+  fi
+  if [ ! -z "${VERSION_WEBAPP}" ]; then
+    echo " OK"
+  else
     echo " failed"
-    log_fatal "Could not determine latest version of FLECS"
+    log_fatal "Could not determine version of FLECS webapp to install"
+  fi
+}
+
+determine_latest_core_version() {
+  log_info -n "Determining latest FLECS core version..."
+  # try through curl first, if available
+  if [ ! -z "${CURL}" ]; then
+    VERSION_CORE=`${CURL} -fsSL ${BASE_PROTO}://${BASE_URL}/flecs/latest_flecs_${ARCH}`
+  # use wget as fallback, if available
+  elif [ ! -z "${WGET}" ]; then
+    VERSION_CORE=`${WGET} -q -O - ${BASE_PROTO}://${BASE_URL}/flecs/latest_flecs_${ARCH}`
+  fi
+  if [ ! -z "${VERSION_CORE}" ]; then
+    echo " OK"
+  else
+    echo " failed"
+    log_fatal "Could not determine version of FLECS core to install"
   fi
 }
 
