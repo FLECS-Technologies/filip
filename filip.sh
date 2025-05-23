@@ -255,7 +255,7 @@ apt_update() {
 # wrapper for apt-get install
 apt_install() {
   log_debug "apt-get install $@"
-  if [ -z "${APT_GET}" ] || ! ${APT_GET} -y install --reinstall $@ 1>${STDOUT} 2>${STDERR}; then
+  if [ -z "${APT_GET}" ] || ! ${APT_GET} -y install --reinstall --allow-downgrades $@ 1>${STDOUT} 2>${STDERR}; then
     return 1
   fi
   return 0
