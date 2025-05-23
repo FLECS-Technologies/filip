@@ -721,7 +721,7 @@ install_libseccomp2() {
   fi
 
   # create apt list
-  if ! create_apt_list flecs_buster-backports "deb http://deb.debian.org/debian buster-backports main"; then
+  if ! create_apt_list flecs_buster-backports "deb http://archive.debian.org/debian buster-backports main"; then
     remove_apt_list flecs_buster-backports
     log_fatal "Could not create buster-backports.list"
   fi
