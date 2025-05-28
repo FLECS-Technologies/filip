@@ -951,7 +951,7 @@ create_download_dir() {
   if [ ! -d "${DOWNLOAD_DIR}" ]; then
     log_fatal "Could not create ${DOWNLOAD_DIR}"
   fi
-  chmod o+x "${DOWNLOAD_DIR}"
+  chmod 755 "${DOWNLOAD_DIR}"
 }
 
 download_flecs() {
