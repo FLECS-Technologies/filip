@@ -135,6 +135,9 @@ confirm() {
 }
 confirm_yn() {
   if [ -z "${ASSUME_YES}" ]; then
+    if [ ! -t 0 ]; then
+      log_fatal "User input required but no tty allocated."
+    fi
     while true; do
       read -p "$*? [y/n]: " input
       case ${input} in
@@ -1206,7 +1209,7 @@ EOF
 SCRIPTNAME=`readlink -f "${0}"`
 if [ "${SCRIPTNAME}" != "/tmp/filip.sh" ]; then
   chmod +x /tmp/filip.sh
-  if [ ! -t 0 ]; then
+  if [ -t 0 ]; then
     exec /tmp/filip.sh $* </dev/tty
   else
     exec /tmp/filip.sh $*
