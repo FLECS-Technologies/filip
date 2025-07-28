@@ -217,6 +217,15 @@ parse_args() {
           exit 1
         fi
         ;;
+      --whitelabel)
+        WHITELABEL=${2}
+        if [ -z "${WHITELABEL}" ]; then
+          log_error "argument --whitelabel requires a value"
+          log_error -q
+          print_usage
+          exit 1
+        fi
+        ;;
       --tls-only)
         BASE_PROTO=https
         ;;
@@ -1043,6 +1052,33 @@ install_flecs() {
   :;
 }
 
+apply_whitelabel() {
+  if [ -z "${WHITELABEL}" ]; then
+    return 0;
+  fi
+
+  if [ -z "${SED}" ]; then
+    log_error "Cannot patch whitelabel: sed not found"
+    return 1
+  fi
+
+  # packaged version
+  if [ ! -z "${SYSTEMCTL}" ]; then
+    if ! ${SED} -i '/^DOCKER_TAG=/s/$/-'${WHITELABEL}'/' /opt/flecs-webapp/bin/flecs-webapp.sh; then
+      log_error "Could not patch whitelabel"
+      return 1
+    fi
+    ${SYSTEMCTL} try-restart flecs-webapp
+  fi
+  # docker-compose version
+  if [ ! -z "${DOCKER_COMPOSE}" ]; then
+    if ! ${SED} -i '#image: flecs/webapp:#s#$#-'${WHITELABEL}'/' ${ROOT_DIR}/etc/opt/flecs/docker-compose.yml; then
+      log_error "Could not patch whitelabel"
+      return 1
+    fi
+  fi
+}
+
 enable_flecs() {
   if [ ! -z "${SYSTEMCTL}" ]; then
     ${SYSTEMCTL} is-enabled flecs >/dev/null 2>&1
@@ -1198,6 +1234,7 @@ if [ -z "${FLECS_TESTING}" ]; then
 
   # perform installation
   install_flecs
+  apply_whitelabel
 
   # enable service, if not automatic
   enable_flecs
