@@ -1246,9 +1246,9 @@ EOF
 SCRIPTNAME=`readlink -f "${0}"`
 if [ "${SCRIPTNAME}" != "/tmp/filip.sh" ]; then
   chmod +x /tmp/filip.sh
-  if [ -t 0 ]; then
-    exec /tmp/filip.sh $* </dev/tty
+  if [ ! -t 0 ] && [ -r /dev/tty ]; then
+    exec /tmp/filip.sh "$@" </dev/tty
   else
-    exec /tmp/filip.sh $*
+    exec /tmp/filip.sh "$@"
   fi
 fi
