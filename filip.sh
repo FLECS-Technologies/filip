@@ -128,16 +128,20 @@ internal_error() {
 }
 
 # print a message and wait for user input. does nothing in unattended mode
+require_stdin() {
+  if ! (exec >/dev/null 2>&1 3</dev/tty); then
+    log_fatal "User input required but no tty allocated."
+  fi
+}
 confirm() {
   if [ -z "${ASSUME_YES}" ]; then
+    require_stdin
     read -s -p "$@"
   fi
 }
 confirm_yn() {
   if [ -z "${ASSUME_YES}" ]; then
-    if [ ! -t 0 ]; then
-      log_fatal "User input required but no tty allocated."
-    fi
+    require_stdin
     while true; do
       read -p "$*? [y/n]: " input
       case ${input} in
@@ -1246,9 +1250,11 @@ EOF
 SCRIPTNAME=`readlink -f "${0}"`
 if [ "${SCRIPTNAME}" != "/tmp/filip.sh" ]; then
   chmod +x /tmp/filip.sh
-  if [ ! -t 0 ] && [ -r /dev/tty ]; then
+  if (exec >/dev/null 2>&1 3</dev/tty); then
+    echo "Executing /tmp/filip.sh with stdin attached"
     exec /tmp/filip.sh "$@" </dev/tty
   else
-    exec /tmp/filip.sh "$@"
+    echo "Executing /tmp/filip.sh without stdin attached"
+    exec /tmp/filip.sh "$@" 0<&-
   fi
 fi
