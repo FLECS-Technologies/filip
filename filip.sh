@@ -513,8 +513,8 @@ detect_os() {
   detect_arch
 }
 
-DEBIAN_VERSIONS=(10 11 12)
-DEBIAN_CODENAMES=(buster bullseye bookworm)
+DEBIAN_VERSIONS=(10 11 12 13)
+DEBIAN_CODENAMES=(buster bullseye bookworm trixie)
 
 UBUNTU_VERSIONS=(20.04 22.04 22.10 23.04)
 UBUNTU_CODENAMES=(focal jammy kinetic lunar)
