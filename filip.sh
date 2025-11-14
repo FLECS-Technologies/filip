@@ -516,8 +516,8 @@ detect_os() {
 DEBIAN_VERSIONS=(10 11 12 13)
 DEBIAN_CODENAMES=(buster bullseye bookworm trixie)
 
-UBUNTU_VERSIONS=(20.04 22.04 22.10 23.04)
-UBUNTU_CODENAMES=(focal jammy kinetic lunar)
+UBUNTU_VERSIONS=(20.04 22.04 23.04 24.04 25.04)
+UBUNTU_CODENAMES=(focal jammy lunar noble plucky)
 
 RHEL_VERSIONS=(8.8 9.2)
 FEDORA_VERSIONS=(37 38)
