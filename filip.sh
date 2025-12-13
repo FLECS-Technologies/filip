@@ -32,7 +32,6 @@ print_usage() {
   echo "  -y --yes                   assume yes as answer to all prompts (unattended mode)"
   echo "     --no-banner             do not print ${ME} banner"
   echo "     --no-welcome            do not print welcome message"
-  echo "     --root-dir <dir>        install files relative do <dir> instead of / (currently .tgz only)"
   echo "     --tls-only              Use TLS directly instead of following https redirects"
   echo "     --core-version <ver>    Install version <ver> of flecs-core instead of the latest version"
   echo "     --webapp-version <ver>  Install version <ver> of flecs-webapp instead of the latest version"
@@ -375,7 +374,7 @@ install_program() {
 # detect which tools are available on the system
 detect_tools() {
   log_debug "Checking availability of required tools..."
-  TOOLS=(apt-get apt-key curl docker docker-compose docker-init dpkg grep gpg gz head ldconfig mktemp opkg pacman rpm sed sort tar systemctl uname update-rc.d wget yum)
+  TOOLS=(apt-get apt-key curl docker docker-compose docker-init dpkg grep gpg gz head ldconfig mktemp opkg pacman rpm sed sort systemctl uname update-rc.d wget yum)
   for TOOL in ${TOOLS[@]}; do
     have ${TOOL}
   done
@@ -407,7 +406,7 @@ verify_tools() {
       INSTALL_PACKAGES="${INSTALL_PACKAGES} ${TOOL}"
     fi
   done
-  local ALTERNATIVES=("apt-get;dpkg;ipkg;opkg;rpm;tar" "sed;grep" "curl;wget" "uname;ldconfig")
+  local ALTERNATIVES=("apt-get;dpkg;ipkg;opkg;rpm" "sed;grep" "curl;wget" "uname;ldconfig")
   for ALTERNATIVE in "${ALTERNATIVES[@]}"; do
     IFS=";" read -r -a TOOL_ALTERNATIVE <<< "${ALTERNATIVE}"
     if ! verify_tool_alternatives "${TOOL_ALTERNATIVE[@]}"; then
@@ -941,18 +940,13 @@ guess_package_format() {
     fedora)
       PKGFORMAT=rpm
       ;;
-    arch)
-      PKGFORMAT=tgz
-      ;;
     other)
       if [ ! -z "${APT_GET}" ] || [ ! -z "${DPKG}" ] || [ ! -z "${OPKG}" ]; then
         PKGFORMAT=deb
       elif [ ! -z "${RPM}" ]; then
         PKGFORMAT=rpm
-      elif [ ! -z "${TAR}" ]; then
-        PKGFORMAT=tgz
       else
-        log_fatal "Cannot find suitable package format in (deb|rpm|tgz)"
+        log_fatal "Cannot find suitable package format in (deb|rpm)"
       fi
       ;;
   esac
@@ -1030,27 +1024,6 @@ install_flecs() {
     rpm)
       log_info -q " rpm"
       log_fatal "rpm package format is currently unsupported"
-      ;;
-    tgz)
-      log_info -q " tgz"
-      for PACKAGE in "${PACKAGES[@]}"; do
-        if [ ! -z "${SYSTEMCTL}" ]; then
-          #systemd
-          if ! ${TAR} -C ${ROOT_DIR} -xf ${PACKAGE} --exclude=etc; then
-            log_fatal "Could not install ${PACKAGE} through tar"
-          fi
-        elif [ ! -z "${DOCKER_COMPOSE}" ]; then
-          #docker-compose
-          if ! ${TAR} -C ${ROOT_DIR} -xf ${PACKAGE} --exclude=usr --exclude=etc/init.d; then
-            log_fatal "Could not install ${PACKAGE} through tar"
-          fi
-        else
-          #init.d
-          if ! ${TAR} -C ${ROOT_DIR} -xf ${PACKAGE} --exclude=usr; then
-            log_fatal "Could not install ${PACKAGE} through tar"
-          fi
-        fi
-      done
       ;;
   esac
   :;
