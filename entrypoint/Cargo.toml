@@ -12,4 +12,6 @@ debug = false
 incremental = false
 
 [dependencies]
-tokio = { version = "1.49.0", features = ["rt", "macros", "time"] }
+async-signal = "0.2.13"
+futures-util = "0.3.31"
+tokio = { version = "1.49.0", features = ["rt", "macros", "time", "sync"] }
