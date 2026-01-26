@@ -1,0 +1,12 @@
+[package]
+name = "flecs-entrypoint"
+version = "0.1.0"
+edition = "2024"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+debug = false
+incremental = false
