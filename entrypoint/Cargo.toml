@@ -10,3 +10,6 @@ codegen-units = 1
 strip = true
 debug = false
 incremental = false
+
+[dependencies]
+tokio = { version = "1.49.0", features = ["rt", "macros", "time"] }
