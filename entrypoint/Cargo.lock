@@ -265,6 +265,7 @@ dependencies = [
  "async-signal",
  "bollard",
  "futures-util",
+ "thiserror",
  "tokio",
 ]
 
