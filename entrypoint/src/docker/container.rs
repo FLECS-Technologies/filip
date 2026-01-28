@@ -15,6 +15,14 @@ const WEBAPP_CONTAINER_NAME: &str = "flecs-webapp";
 const FLOXY_CONTAINER_NAME: &str = "flecs-floxy";
 mod config;
 
+#[derive(thiserror::Error, Debug)]
+pub enum CreateContainerError {
+    #[error(transparent)]
+    Bollard(#[from] bollard::errors::Error),
+    #[error("Logic error during container creation: {message}")]
+    Logic { message: String },
+}
+
 pub async fn pull(
     docker_client: &Docker,
     credentials: Option<DockerCredentials>,
@@ -36,9 +44,21 @@ pub async fn pull(
 async fn re_create_container(
     docker_client: &Docker,
     config: ContainerConfig,
-) -> Result<String, bollard::errors::Error> {
-    let image_with_tag = config.1.image.clone().unwrap();
-    let container_name = config.0.as_ref().unwrap().name.clone().unwrap();
+) -> Result<String, CreateContainerError> {
+    let image_with_tag = config
+        .1
+        .image
+        .clone()
+        .ok_or_else(|| CreateContainerError::Logic {
+            message: "Container config contains no image".to_string(),
+        })?;
+    let container_name = config
+        .0
+        .name
+        .clone()
+        .ok_or_else(|| CreateContainerError::Logic {
+            message: "Container config contains no container name".to_string(),
+        })?;
     let (image, tag) = match image_with_tag.split_once(':') {
         None => (image_with_tag.clone(), None),
         Some((image, tag)) => (image.to_string(), Some(tag.to_string())),
@@ -55,7 +75,7 @@ async fn re_create_container(
             }
             Err(inspect_error) => {
                 error!("Failed to inspect local image of {image_with_tag}: {inspect_error}");
-                return Err(pull_error);
+                return Err(CreateContainerError::from(pull_error));
             }
         }
     };
@@ -75,9 +95,11 @@ async fn re_create_container(
         Err(bollard::errors::Error::DockerResponseServerError {
             status_code: 404, ..
         }) => {}
-        Err(e) => return Err(e),
+        Err(e) => return Err(CreateContainerError::from(e)),
     }
-    let response = docker_client.create_container(config.0, config.1).await?;
+    let response = docker_client
+        .create_container(Some(config.0), config.1)
+        .await?;
     for warning in response.warnings {
         warn!("{warning}");
     }
@@ -87,7 +109,7 @@ async fn re_create_container(
 pub async fn create_containers(
     docker_client: &Docker,
     gateway: Ipv4Addr,
-) -> Result<(), bollard::errors::Error> {
+) -> Result<(), CreateContainerError> {
     // TODO: Determine free http port, free https port
     let http_port = 80;
     let https_port = 443;

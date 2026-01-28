@@ -17,6 +17,8 @@ enum Error {
     Bollard(#[from] bollard::errors::Error),
     #[error(transparent)]
     CreateNetwork(#[from] docker::network::CreateNetworkError),
+    #[error(transparent)]
+    CreateContainer(#[from] docker::container::CreateContainerError),
 }
 
 type Result<T> = std::result::Result<T, Error>;

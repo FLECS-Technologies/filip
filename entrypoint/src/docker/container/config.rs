@@ -9,7 +9,7 @@ use bollard::query_parameters::CreateContainerOptions;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
 
-pub type ContainerConfig = (Option<CreateContainerOptions>, ContainerCreateBody);
+pub type ContainerConfig = (CreateContainerOptions, ContainerCreateBody);
 const CONTAINER_REGISTRY: &str = "flecspublic.azurecr.io";
 const CORE_IMAGE: &str = "flecs-slim";
 const CORE_VERSION: &str = "5.1.0-red-deer";
@@ -32,10 +32,10 @@ pub fn floxy_container_config(
     gateway: Ipv4Addr,
 ) -> ContainerConfig {
     (
-        Some(CreateContainerOptions {
+        CreateContainerOptions {
             name: Some(FLOXY_CONTAINER_NAME.to_string()),
             ..CreateContainerOptions::default()
-        }),
+        },
         ContainerCreateBody {
             image: Some(format!(
                 "{CONTAINER_REGISTRY}/{FLOXY_IMAGE}:{FLOXY_VERSION}"
@@ -71,10 +71,10 @@ pub fn floxy_container_config(
 
 pub fn core_container_config() -> ContainerConfig {
     (
-        Some(CreateContainerOptions {
+        CreateContainerOptions {
             name: Some(CORE_CONTAINER_NAME.to_string()),
             ..CreateContainerOptions::default()
-        }),
+        },
         ContainerCreateBody {
             image: Some(format!("{CONTAINER_REGISTRY}/{CORE_IMAGE}:{CORE_VERSION}")),
             hostname: Some(CORE_CONTAINER_NAME.to_string()),
@@ -104,10 +104,10 @@ pub fn core_container_config() -> ContainerConfig {
 
 pub fn webapp_container_config(ip: Ipv4Addr, gateway: Ipv4Addr) -> ContainerConfig {
     (
-        Some(CreateContainerOptions {
+        CreateContainerOptions {
             name: Some(WEBAPP_CONTAINER_NAME.to_string()),
             ..CreateContainerOptions::default()
-        }),
+        },
         ContainerCreateBody {
             image: Some(format!(
                 "{CONTAINER_REGISTRY}/{WEBAPP_IMAGE}:{WEBAPP_VERSION}"
