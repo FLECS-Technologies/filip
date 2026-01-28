@@ -1,7 +1,14 @@
 use async_signal::{Signal, Signals};
 use futures_util::StreamExt;
 
+mod docker;
 mod logging;
+use crate::docker::container::{
+    create_containers, remove_containers, start_containers, stop_containers,
+};
+use crate::docker::docker_client;
+use crate::docker::volume::create_floxy_data_volume;
+use docker::network::create_network;
 
 fn init_signal_handler() -> std::io::Result<tokio::sync::oneshot::Receiver<()>> {
     let (result_sender, result_receiver) = tokio::sync::oneshot::channel();
@@ -26,11 +33,23 @@ fn init_signal_handler() -> std::io::Result<tokio::sync::oneshot::Receiver<()>> 
 async fn main() -> std::io::Result<()> {
     info!("Hello");
     let stop_signal = init_signal_handler()?;
-    // TODO: Start flecs-core, flecs-webapp and flecs-floxy
+    // TODO: Handle errors instead of unwrapping
+    let docker_client = docker_client().unwrap();
+    let gateway = create_network(&docker_client).await.unwrap();
+    create_floxy_data_volume(&docker_client).await.unwrap();
+    create_containers(&docker_client.clone(), gateway)
+        .await
+        .unwrap();
+    start_containers(&docker_client).await.unwrap();
     stop_signal
         .await
         .expect("The sending side is never dropped before sending");
-    // TODO: Shutdown flecs-core, flecs-webapp and flecs-floxy
+    info!("Stopping containers...");
+    stop_containers(&docker_client).await.unwrap();
+    info!("...stopped containers");
+    info!("Removing containers...");
+    remove_containers(&docker_client).await.unwrap();
+    info!("...removed containers");
     info!("Goodbye");
     Ok(())
 }
