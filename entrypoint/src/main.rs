@@ -15,6 +15,8 @@ enum Error {
     IO(#[from] std::io::Error),
     #[error(transparent)]
     Bollard(#[from] bollard::errors::Error),
+    #[error(transparent)]
+    CreateNetwork(#[from] docker::network::CreateNetworkError),
 }
 
 type Result<T> = std::result::Result<T, Error>;

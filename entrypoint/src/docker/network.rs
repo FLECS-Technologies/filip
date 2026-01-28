@@ -2,8 +2,28 @@ use crate::info;
 use bollard::Docker;
 use bollard::config::{Ipam, IpamConfig, NetworkCreateRequest};
 use std::borrow::Cow;
-use std::net::Ipv4Addr;
+use std::net::{AddrParseError, Ipv4Addr};
 use std::str::FromStr;
+
+#[derive(thiserror::Error, Debug)]
+pub enum CreateNetworkError {
+    #[error(transparent)]
+    Bollard(#[from] bollard::errors::Error),
+    #[error("Logic error during network creation: {message}")]
+    Logic { message: String },
+    #[error("Encountered invalid ip during network creation: {0}")]
+    InvalidIpv4(#[from] AddrParseError),
+    #[error(transparent)]
+    GetExistingIpAddressesError(#[from] GetExistingIpAddressesError),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum GetExistingIpAddressesError {
+    #[error(transparent)]
+    IO(#[from] std::io::Error),
+    #[error("Failed to execute ifconfig")]
+    Ifconfig,
+}
 
 type Network = (Ipv4Addr, u8);
 pub const FLECS_NETWORK_NAME: &str = "flecs";
@@ -48,22 +68,21 @@ fn parse_ifconfig_output(output: Cow<str>) -> Vec<Ipv4Addr> {
         .collect()
 }
 
-async fn get_existing_ip_addresses() -> Vec<Ipv4Addr> {
+async fn get_existing_ip_addresses() -> Result<Vec<Ipv4Addr>, GetExistingIpAddressesError> {
     // TODO: Find portable way
     let result = tokio::process::Command::new("ifconfig")
         .arg("-a")
         .output()
-        .await
-        .unwrap();
+        .await?;
     if !result.status.success() {
-        panic!("Failed to execute ifconfig");
+        return Err(GetExistingIpAddressesError::Ifconfig);
     }
     let output = String::from_utf8_lossy(&result.stdout);
-    parse_ifconfig_output(output)
+    Ok(parse_ifconfig_output(output))
 }
 
-pub async fn create_network(docker_client: &Docker) -> Result<Ipv4Addr, bollard::errors::Error> {
-    let existing_ip_addresses = get_existing_ip_addresses().await;
+pub async fn create_network(docker_client: &Docker) -> Result<Ipv4Addr, CreateNetworkError> {
+    let existing_ip_addresses = get_existing_ip_addresses().await?;
     info!("Found ip addresses: {existing_ip_addresses:#?}");
     match docker_client
         .inspect_network(FLECS_NETWORK_NAME, None)
@@ -71,22 +90,29 @@ pub async fn create_network(docker_client: &Docker) -> Result<Ipv4Addr, bollard:
     {
         Ok(network) => {
             info!("Reusing existing network {FLECS_NETWORK_NAME}");
-            // TODO: Handle errors
             Ok(network
                 .ipam
                 .as_ref()
-                .unwrap()
+                .ok_or_else(|| CreateNetworkError::Logic {
+                    message: format!("Network {FLECS_NETWORK_NAME} has no ipam"),
+                })?
                 .config
                 .as_ref()
-                .unwrap()
+                .ok_or_else(|| CreateNetworkError::Logic {
+                    message: format!("Network {FLECS_NETWORK_NAME} has no ipam config"),
+                })?
                 .first()
                 .as_ref()
-                .unwrap()
+                .ok_or_else(|| CreateNetworkError::Logic {
+                    message: format!("Network {FLECS_NETWORK_NAME} has no ipam config"),
+                })?
                 .gateway
                 .as_ref()
-                .unwrap()
+                .ok_or_else(|| CreateNetworkError::Logic {
+                    message: format!("Network {FLECS_NETWORK_NAME} has no gateway"),
+                })?
                 .parse()
-                .unwrap())
+                .map_err(CreateNetworkError::InvalidIpv4)?)
         }
         Err(bollard::errors::Error::DockerResponseServerError {
             status_code: 404, ..
@@ -98,8 +124,9 @@ pub async fn create_network(docker_client: &Docker) -> Result<Ipv4Addr, bollard:
                         network_contains_ip(**subnet, *existing_ip_address)
                     })
                 })
-                // TODO: Handle error
-                .unwrap();
+                .ok_or_else(|| CreateNetworkError::Logic {
+                    message: format!("No free subnet found for network {FLECS_NETWORK_NAME}"),
+                })?;
             let gateway = subnet.0 | Ipv4Addr::new(0, 0, 0, 1);
             let subnet = format!("{}/{}", subnet.0, subnet.1);
             docker_client
@@ -119,6 +146,6 @@ pub async fn create_network(docker_client: &Docker) -> Result<Ipv4Addr, bollard:
                 .await?;
             Ok(gateway)
         }
-        Err(e) => Err(e),
+        Err(e) => Err(CreateNetworkError::from(e)),
     }
 }
