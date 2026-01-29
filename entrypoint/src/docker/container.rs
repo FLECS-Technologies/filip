@@ -1,6 +1,7 @@
 use crate::docker::container::config::{
     core_container_config, floxy_container_config, webapp_container_config,
 };
+use crate::docker::network::NetworkInfo;
 use crate::{error, warn};
 use bollard::Docker;
 use bollard::auth::DockerCredentials;
@@ -108,16 +109,17 @@ async fn re_create_container(
 
 pub async fn create_containers(
     docker_client: &Docker,
-    gateway: Ipv4Addr,
+    NetworkInfo {
+        free_https_port,
+        free_http_port,
+        gateway,
+    }: NetworkInfo,
 ) -> Result<(), CreateContainerError> {
-    // TODO: Determine free http port, free https port
-    let http_port = 80;
-    let https_port = 443;
     let [first_octet, second_octet, _, _] = gateway.octets();
     let webapp_ip = Ipv4Addr::new(first_octet, second_octet, 255, 254);
 
     // floxy
-    let config = floxy_container_config(http_port, https_port, gateway);
+    let config = floxy_container_config(free_http_port, free_https_port, gateway);
     re_create_container(docker_client, config).await?;
 
     // core

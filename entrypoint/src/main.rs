@@ -5,9 +5,9 @@ use crate::docker::container::{
     create_containers, remove_containers, start_containers, stop_containers,
 };
 use crate::docker::docker_client;
+use crate::docker::network::network_setup;
 use crate::docker::volume::create_floxy_data_volume;
 use crate::signal::init_signal_handler;
-use docker::network::create_network;
 
 #[derive(thiserror::Error, Debug)]
 enum Error {
@@ -16,7 +16,7 @@ enum Error {
     #[error(transparent)]
     Bollard(#[from] bollard::errors::Error),
     #[error(transparent)]
-    CreateNetwork(#[from] docker::network::CreateNetworkError),
+    NetworkSetup(#[from] docker::network::NetworkSetupError),
     #[error(transparent)]
     CreateContainer(#[from] docker::container::CreateContainerError),
 }
@@ -28,9 +28,9 @@ async fn main() -> Result<()> {
     info!("Hello");
     let stop_signal = init_signal_handler()?;
     let docker_client = docker_client()?;
-    let gateway = create_network(&docker_client).await?;
+    let network_info = network_setup(&docker_client).await?;
     create_floxy_data_volume(&docker_client).await?;
-    create_containers(&docker_client.clone(), gateway).await?;
+    create_containers(&docker_client.clone(), network_info).await?;
     start_containers(&docker_client).await?;
     stop_signal
         .await
