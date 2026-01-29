@@ -28,6 +28,8 @@ async fn main() -> Result<()> {
     info!("Hello");
     let stop_signal = init_signal_handler()?;
     let docker_client = docker_client()?;
+    stop_containers(&docker_client).await?;
+    remove_containers(&docker_client).await?;
     let network_info = network_setup(&docker_client).await?;
     create_floxy_data_volume(&docker_client).await?;
     create_containers(&docker_client.clone(), network_info).await?;
