@@ -80,23 +80,10 @@ async fn re_create_container(
             }
         }
     };
-    match docker_client.inspect_container(&container_name, None).await {
-        Ok(_) => {
-            warn!("Removing existing container {container_name}");
-            docker_client
-                .remove_container(
-                    FLOXY_CONTAINER_NAME,
-                    Some(RemoveContainerOptions {
-                        force: true,
-                        ..RemoveContainerOptions::default()
-                    }),
-                )
-                .await?;
-        }
-        Err(bollard::errors::Error::DockerResponseServerError {
-            status_code: 404, ..
-        }) => {}
-        Err(e) => return Err(CreateContainerError::from(e)),
+    if container_exists(docker_client, &container_name).await? {
+        warn!("Removing existing container {container_name}");
+        stop_container(docker_client, &container_name).await?;
+        remove_container(docker_client, &container_name).await?;
     }
     let response = docker_client
         .create_container(Some(config.0), config.1)
@@ -146,36 +133,65 @@ pub async fn start_containers(docker_client: &Docker) -> Result<(), bollard::err
     Ok(())
 }
 
+async fn container_exists(
+    docker_client: &Docker,
+    container_name: &str,
+) -> Result<bool, bollard::errors::Error> {
+    match docker_client.inspect_container(container_name, None).await {
+        Ok(_) => Ok(true),
+        Err(bollard::errors::Error::DockerResponseServerError {
+            status_code: 404, ..
+        }) => Ok(false),
+        Err(e) => Err(e),
+    }
+}
+
+async fn remove_container(
+    docker_client: &Docker,
+    container_name: &str,
+) -> Result<(), bollard::errors::Error> {
+    if container_exists(docker_client, container_name).await? {
+        docker_client
+            .remove_container(
+                container_name,
+                Some(RemoveContainerOptions {
+                    force: true,
+                    ..RemoveContainerOptions::default()
+                }),
+            )
+            .await?;
+    }
+    Ok(())
+}
+
+async fn stop_container(
+    docker_client: &Docker,
+    container_name: &str,
+) -> Result<(), bollard::errors::Error> {
+    if container_exists(docker_client, container_name).await? {
+        docker_client
+            .stop_container(
+                container_name,
+                Some(StopContainerOptions {
+                    t: Some(120),
+                    ..StopContainerOptions::default()
+                }),
+            )
+            .await?;
+    }
+    Ok(())
+}
+
 pub async fn remove_containers(docker_client: &Docker) -> Result<(), bollard::errors::Error> {
-    let options = Some(RemoveContainerOptions {
-        force: true,
-        ..RemoveContainerOptions::default()
-    });
-    docker_client
-        .remove_container(FLOXY_CONTAINER_NAME, options.clone())
-        .await?;
-    docker_client
-        .remove_container(CORE_CONTAINER_NAME, options.clone())
-        .await?;
-    docker_client
-        .remove_container(WEBAPP_CONTAINER_NAME, options)
-        .await?;
+    remove_container(docker_client, FLOXY_CONTAINER_NAME).await?;
+    remove_container(docker_client, WEBAPP_CONTAINER_NAME).await?;
+    remove_container(docker_client, CORE_CONTAINER_NAME).await?;
     Ok(())
 }
 
 pub async fn stop_containers(docker_client: &Docker) -> Result<(), bollard::errors::Error> {
-    let options = Some(StopContainerOptions {
-        t: Some(120),
-        ..StopContainerOptions::default()
-    });
-    docker_client
-        .stop_container(FLOXY_CONTAINER_NAME, options.clone())
-        .await?;
-    docker_client
-        .stop_container(CORE_CONTAINER_NAME, options.clone())
-        .await?;
-    docker_client
-        .stop_container(WEBAPP_CONTAINER_NAME, options)
-        .await?;
+    stop_container(docker_client, FLOXY_CONTAINER_NAME).await?;
+    stop_container(docker_client, WEBAPP_CONTAINER_NAME).await?;
+    stop_container(docker_client, CORE_CONTAINER_NAME).await?;
     Ok(())
 }
