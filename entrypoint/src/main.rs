@@ -25,15 +25,26 @@ type Result<T> = std::result::Result<T, Error>;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
-    info!("Hello");
     let stop_signal = init_signal_handler()?;
     let docker_client = docker_client()?;
+
+    info!("Cleanup of any leftover containers");
     stop_containers(&docker_client).await?;
     remove_containers(&docker_client).await?;
+
+    info!("Network setup");
     let network_info = network_setup(&docker_client).await?;
+
+    info!("Volume creation");
     create_floxy_data_volume(&docker_client).await?;
+
+    info!("Container creation");
     create_containers(&docker_client.clone(), network_info).await?;
+
+    info!("Container startup");
     start_containers(&docker_client).await?;
+    info!("FLECS is up and running");
+
     stop_signal
         .await
         .expect("The sending side is never dropped before sending");
@@ -43,6 +54,5 @@ async fn main() -> Result<()> {
     info!("Removing containers...");
     remove_containers(&docker_client).await?;
     info!("...removed containers");
-    info!("Goodbye");
     Ok(())
 }
