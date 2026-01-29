@@ -3,7 +3,7 @@ use crate::docker::network::FLECS_NETWORK_NAME;
 use crate::docker::volume::{FLOXY_CERT_VOLUME, FLOXY_DATA_VOLUME};
 use bollard::config::{
     ContainerCreateBody, EndpointIpamConfig, EndpointSettings, HostConfig, Mount, MountTypeEnum,
-    NetworkingConfig,
+    NetworkingConfig, RestartPolicy, RestartPolicyNameEnum,
 };
 use bollard::query_parameters::CreateContainerOptions;
 use std::collections::HashMap;
@@ -57,6 +57,10 @@ pub fn floxy_container_config(
                         ..Mount::default()
                     },
                 ]),
+                restart_policy: Some(RestartPolicy {
+                    maximum_retry_count: Some(0),
+                    name: Some(RestartPolicyNameEnum::ON_FAILURE),
+                }),
                 ..HostConfig::default()
             }),
             env: Some(vec![
