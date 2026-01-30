@@ -25,7 +25,6 @@ RUN /tmp/scripts/build.sh
 FROM alpine:3 AS staging-release
 
 # rootfs
-COPY --from=flecspublic.azurecr.io/docker/nginx:alpine-openssl / /staging/
 COPY docker/fs/ /staging/
 
 # executables
@@ -35,7 +34,6 @@ COPY --from=entrypoint /entrypoint /staging/entrypoint
 FROM alpine:3 AS staging-debug
 
 # rootfs
-COPY --from=flecspublic.azurecr.io/docker/nginx:alpine-openssl-debug / /staging/
 COPY docker/fs/ /staging/
 
 # executables
@@ -75,20 +73,15 @@ COPY docker/scripts/ /tmp/scripts
 RUN /tmp/scripts/validate.sh
 
 # ==============================================================================
-# final: Copies the rootfs from nginx-validation and finalizes the build by
-#   setting our entrypoint.
+# final: Copies the rootfs validation and finalizes the build by setting our entrypoint.
 # ==============================================================================
 FROM scratch AS release
-
-ENV PATH=/bin:/usr/sbin:/usr/bin
 
 COPY --from=validation-release /final /
 
 ENTRYPOINT ["/entrypoint"]
 # ==============================================================================
 FROM scratch AS debug
-
-ENV PATH=/bin:/usr/sbin:/usr/bin
 
 COPY --from=validation-debug /final /
 
