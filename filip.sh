@@ -932,103 +932,6 @@ determine_latest_core_version() {
   fi
 }
 
-guess_package_format() {
-  case ${OS_LIKE} in
-    debian)
-      PKGFORMAT=deb
-      ;;
-    fedora)
-      PKGFORMAT=rpm
-      ;;
-    other)
-      if [ ! -z "${APT_GET}" ] || [ ! -z "${DPKG}" ] || [ ! -z "${OPKG}" ]; then
-        PKGFORMAT=deb
-      elif [ ! -z "${RPM}" ]; then
-        PKGFORMAT=rpm
-      else
-        log_fatal "Cannot find suitable package format in (deb|rpm)"
-      fi
-      ;;
-  esac
-}
-
-create_download_dir() {
-  DOWNLOAD_DIR=`mktemp -d`
-  if [ ! -d "${DOWNLOAD_DIR}" ]; then
-    DOWNLOAD_DIR="/tmp/flecs-install-tmp"
-    mkdir -p ${DOWNLOAD_DIR}
-  fi
-  if [ ! -d "${DOWNLOAD_DIR}" ]; then
-    log_fatal "Could not create ${DOWNLOAD_DIR}"
-  fi
-  chmod 755 "${DOWNLOAD_DIR}"
-}
-
-download_flecs() {
-  if ! cd ${DOWNLOAD_DIR}; then
-    log_fatal "Could not cd to ${DOWNLOAD_DIR}"
-  fi
-  log_info "Downloading FLECS as ${PKGFORMAT}"
-
-  PACKAGES=(flecs_${VERSION_CORE}_${ARCH}.${PKGFORMAT} flecs-webapp_${VERSION_WEBAPP}_${ARCH}.${PKGFORMAT})
-  DIRS=(flecs webapp)
-  VERSIONS=(${VERSION_CORE} ${VERSION_WEBAPP})
-  for i in ${!PACKAGES[@]}; do
-    if [ ! -z "${CURL}" ]; then
-      if ! ${CURL} -fsSL --output - ${BASE_PROTO}://${BASE_URL}/${DIRS[$i]}/${VERSIONS[$i]}/${PKGFORMAT}/${PACKAGES[$i]} >${PACKAGES[$i]}; then
-        log_fatal "Could not download ${PACKAGES[$i]} through ${CURL}"
-      fi
-    elif [ ! -z "${WGET}" ]; then
-      if ! ${WGET} -q ${BASE_PROTO}://${BASE_URL}/${DIRS[$i]}/${VERSIONS[$i]}/${PKGFORMAT}/${PACKAGES[$i]}; then
-        log_fatal "Could not download ${PACKAGES[$i]} through ${WGET}"
-      fi
-    fi
-  done
-  for PACKAGE in ${PACKAGES[@]}; do
-    if [ ! -f "${PACKAGE}" ]; then
-      internal_error "Package ${PACKAGE} missing after download"
-    fi
-  done
-  return 0
-}
-
-install_flecs() {
-  log_info -n "Installing FLECS using"
-  case ${PKGFORMAT} in
-    deb)
-      if [ ! -z "${APT_GET}" ]; then
-        log_info -q " apt-get"
-        for PACKAGE in "${PACKAGES[@]}"; do
-          if ! apt_install ${DOWNLOAD_DIR}/${PACKAGE}; then
-            log_fatal "Could not install ${PACKAGE} through apt-get"
-          fi
-        done
-      elif [ ! -z "${DPKG}" ]; then
-        log_info -q " dpkg"
-        for PACKAGE in "${PACKAGES[@]}"; do
-          if ! ${DPKG} --install ${DOWNLOAD_DIR}/${PACKAGE} 1>${STDOUT} 2>${STDERR}; then
-            log_fatal "Could not install ${PACKAGE} through dpkg"
-          fi
-        done
-      elif [ ! -z "${OPKG}" ]; then
-        log_info -q " opkg"
-        for PACKAGE in "${PACKAGES[@]}"; do
-          if ! ${OPKG} --install ${DOWNLOAD_DIR}/${PACKAGE} 1>${STDOUT} 2>${STDERR}; then
-            log_fatal "Could not install ${PACKAGE} through opkg"
-          fi
-        done
-      else
-        internal_error "Neither apt-get nor dpkg/opkg available to install deb package"
-      fi
-      ;;
-    rpm)
-      log_info -q " rpm"
-      log_fatal "rpm package format is currently unsupported"
-      ;;
-  esac
-  :;
-}
-
 apply_whitelabel() {
   if [ -z "${WHITELABEL}" ]; then
     return 0;
@@ -1204,13 +1107,7 @@ if [ -z "${FLECS_TESTING}" ]; then
     log_fatal "Could not determine latest version of FLECS"
   fi
 
-  # create temporary directory and download FLECS
-  create_download_dir
-  guess_package_format
-  download_flecs
-
   # perform installation
-  install_flecs
   apply_whitelabel
 
   # enable service, if not automatic
