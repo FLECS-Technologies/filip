@@ -22,7 +22,7 @@ ROOT_DIR=/
 STDOUT=/dev/null
 STDERR=/dev/null
 
-BASE_PROTO=http
+BASE_PROTO=https
 BASE_URL=dl.flecs.tech
 
 print_usage() {
@@ -32,7 +32,6 @@ print_usage() {
   echo "  -y --yes                   assume yes as answer to all prompts (unattended mode)"
   echo "     --no-banner             do not print ${ME} banner"
   echo "     --no-welcome            do not print welcome message"
-  echo "     --tls-only              Use TLS directly instead of following https redirects"
   echo "     --core-version <ver>    Install version <ver> of flecs-core instead of the latest version"
   echo "     --webapp-version <ver>  Install version <ver> of flecs-webapp instead of the latest version"
   echo "     --help                  print this help and exit"
@@ -229,9 +228,6 @@ parse_args() {
           exit 1
         fi
         ;;
-      --tls-only)
-        BASE_PROTO=https
-        ;;
       --help)
         print_usage
         exit 0
@@ -374,7 +370,7 @@ install_program() {
 # detect which tools are available on the system
 detect_tools() {
   log_debug "Checking availability of required tools..."
-  TOOLS=(apt-get apt-key curl docker docker-compose docker-init dpkg grep gpg gz head ldconfig mktemp opkg pacman rpm sed sort systemctl uname update-rc.d wget yum)
+  TOOLS=(apt-get chkconfig curl docker grep head ldconfig opkg pacman rpm sed service sort systemctl uname update-rc.d wget yum)
   for TOOL in ${TOOLS[@]}; do
     have ${TOOL}
   done
@@ -512,8 +508,8 @@ detect_os() {
   detect_arch
 }
 
-DEBIAN_VERSIONS=(10 11 12 13)
-DEBIAN_CODENAMES=(buster bullseye bookworm trixie)
+DEBIAN_VERSIONS=(11 12 13)
+DEBIAN_CODENAMES=(bullseye bookworm trixie)
 
 UBUNTU_VERSIONS=(20.04 22.04 23.04 24.04 25.04)
 UBUNTU_CODENAMES=(focal jammy lunar noble plucky)
@@ -651,15 +647,14 @@ determine_docker_version() {
 # and will currently be rejected as support is in development.
 DOCKER_OK=0
 DOCKER_OUTDATED=2
+MIN_DOCKER_API_VERSION="1.41"
+MIN_DOCKER_CLIENT_VERSION="20.10.5"
 verify_docker_version() {
   if [ "${DOCKER_NAME}" = "podman" ]; then
     MIN_DOCKER_API_VERSION="4.5.0"
     MIN_DOCKER_CLIENT_VERSION="4.5.0"
     log_error "Podman is currently unsupported."
     log_fatal "Please contact us at info@flecs.tech if you require podman support"
-  else
-    MIN_DOCKER_API_VERSION="1.41"
-    MIN_DOCKER_CLIENT_VERSION="20.10.5"
   fi
 
   if cmp_less "${DOCKER_CLIENT_VERSION}" "${MIN_DOCKER_CLIENT_VERSION}"; then
@@ -677,130 +672,12 @@ verify_docker_version() {
   return ${DOCKER_OK}
 }
 
-# creates a new file in /etc/apt/sources.list.d
-create_apt_list() {
-  echo ${2} >/etc/apt/sources.list.d/${1}.list
-  return $?
-}
-
-# removes a file from /etc/apt/sources.list.d
-remove_apt_list() {
-  rm /etc/apt/sources.list.d/${1}.list
-  return $?
-}
-
-# Trust Debian keys on Raspbian. This is required to update libseccomp2 from
-# buster-backports on Raspbian versions before bullseye.
-add_debian_keys() {
-  if [ -z "${GPG}" ]; then
-    log_info "Installing prerequisite gpg"
-    if ! apt_update || ! apt_install gpg; then
-      log_fatal "Could not install prerequisite gpg"
-    fi
-    have gpg
-  fi
-  if [ -z "${APT_KEY}" ]; then
-    internal_error "add_debian_keys called on incompatible platform"
-  fi
-  log_info "Adding Debian keys to trusted apt keys"
-  local KEYSERVER="keyserver.ubuntu.com"
-  local KEYS=(04EE7237B7D453EC 648ACFD622F3D138)
-  for KEY in "${KEYS[@]}"; do
-    if ! ${GPG} --keyserver ${KEYSERVER} --recv-keys ${KEY} 1>${STDOUT} 2>${STDERR}; then
-      log_fatal "Failed to receive key ${KEY}"
-    fi
-    if ! ${GPG} --export ${KEY} | ${APT_KEY} add - 1>${STDOUT} 2>${STDERR}; then
-      log_fatal "Failed to trust key ${KEY}"
-    fi
-  done
-}
-
-# For Debian versions before bullseye, some Docker containers will not run
-# correctly due to an incompatible version of libseccomp2. This function will
-# install a suitable version from the buster-backports repository.
-# On Raspbian, we need to add Debian signing keys to the list of trusted apt
-# keys first. On Debian we can proceed with the installation directly.
-install_libseccomp2() {
-  # verify preconditions before continuing
-  if [[ "${OS}" != "debian" ]] && [[ "${OS}" != "raspbian" ]]; then
-    internal_error "install_libseccomp2 called on incompatible platform (${OS})"
-  fi
-  if  [[ "${CODENAME}" != "buster" ]]; then
-    internal_error "install_libseccomp2 called on incompatible platform (${CODENAME})" 1>&2
-  fi
-
-  log_info "Installing prerequisite libseccomp2"
-  # trust Debian keys in case of Raspbian
-  if [ "${OS}" == "raspbian" ]; then
-    add_debian_keys
-  fi
-
-  # create apt list
-  if ! create_apt_list flecs_buster-backports "deb http://archive.debian.org/debian buster-backports main"; then
-    remove_apt_list flecs_buster-backports
-    log_fatal "Could not create buster-backports.list"
-  fi
-  # update package lists
-  if ! apt_update; then
-    remove_apt_list flecs_buster-backports
-    log_fatal "apt-get update returned error in install_libseccomp2"
-  fi
-  # install libseccomp2
-  if ! apt_install libseccomp2/buster-backports; then
-    remove_apt_list flecs_buster-backports
-    apt_update
-    log_fatal "apt-get install returned error in install_libseccomp2"
-  fi
-}
-
-add_docker_sources() {
-  if [ -z "${GPG}" ]; then
-    log_info "Installing prerequisite gpg"
-    if ! apt_update || ! apt_install gpg; then
-      log_fatal "Could not install prerequisite gpg"
-    fi
-    have gpg
-  fi
-  if [ ! -z "${CURL}" ]; then
-    ${CURL} -fsSL https://download.docker.com/linux/${OS}/gpg | \
-      ${GPG} --batch --yes --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-  elif [ ! -z "${WGET}" ]; then
-    ${WGET} -q -O - https://download.docker.com/linux/${OS}/gpg | \
-      ${GPG} --batch --yes --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-  fi
-  if [ ! -f "/usr/share/keyrings/docker-archive-keyring.gpg" ]; then
-    log_fatal "Could not retrieve apt keys for Docker"
-  fi
-
-  if [ -z "${DPKG}" ]; then
-    internal_error "add_docker_sources called in incompatible platform"
-  fi
-  if ! create_apt_list docker "deb [arch=$(${DPKG} --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/${OS} ${CODENAME} stable"; then
-    log_fatal "Could not create docker.list"
-  fi
-  apt_update
-  apt_install docker-ce docker-ce-cli
-}
-
 install_docker_debian() {
-  echo " apt-get"
-  case ${1} in
-    buster)
-      log_warning "The Docker installation that is provided by your operating system is outdated"
-      log_warning "and will not work with FLECS. Instead, official Docker packages provided by"
-      log_warning "docker.com will be installed."
-      local DOCKER_PACKAGE="docker-ce docker-ce-cli"
-      install_libseccomp2
-      add_docker_sources
-      ;;
-    *)
-      local DOCKER_PACKAGE="docker.io"
-  esac
-
+  echo "apt-get"
   if ! apt_update; then
     log_fatal "apt_update returned error in install_docker"
   fi
-  if ! apt_install ${DOCKER_PACKAGE}; then
+  if ! apt_install docker.io; then
     log_fatal "apt_install install returned error in install_docker"
   fi
 }
@@ -852,26 +729,21 @@ install_docker() {
   exec "${SCRIPTNAME}" --no-banner --no-welcome ${ARGS}
 }
 
-start_docker() {
+start_and_enable_docker() {
   if ! docker version >/dev/null 2>&1; then
     log_info -n "Attempting to start Docker..."
     if [ ! -z "${SYSTEMCTL}" ] && ${SYSTEMCTL} enable --now docker >/dev/null 2>&1; then
       echo " OK (systemctl)"
       return 0
-    elif [ -f "/etc/init.d/docker " ] && /etc/init.d/docker start >/dev/null 2>&1; then
+    elif [ ! -z "${SERVICE}" ]; then
+      if [ ! -z "${CHKCONFIG}" ] && [ ! -z "${UPDATE_RC_D}" ]; then
+        if ! ${CHKCONFIG} docker on; then
+          ${UPDATE_RC_D} docker defaults
+        fi
+      fi
+      service docker start >/dev/null 2>&1;
       echo " OK (init.d)"
       return 0
-    elif [ ! -z "${DOCKER_INIT}" ] && (${DOCKER_INIT} -- dockerd --host=unix:///var/run/docker.sock >/dev/null 2>&1 &); then
-      echo " OK (docker-init)"
-      return 0
-    else
-      :;
-      #if bash -c 'containerd >/dev/null 2>&1'; then
-      #  if bash -c 'dockerd >/dev/null 2>&1'; then
-      #    echo " OK (raw)"
-      #    return 0
-      #  fi
-      #fi
     fi
     echo " failed"
     return 1
@@ -942,59 +814,12 @@ apply_whitelabel() {
     return 1
   fi
 
-  # packaged version
   if [ ! -z "${SYSTEMCTL}" ]; then
     if ! ${SED} -i '/^DOCKER_TAG=/s/$/-'${WHITELABEL}'/' /opt/flecs-webapp/bin/flecs-webapp.sh; then
       log_error "Could not patch whitelabel"
       return 1
     fi
     ${SYSTEMCTL} try-restart flecs-webapp
-  fi
-  # docker-compose version
-  if [ ! -z "${DOCKER_COMPOSE}" ]; then
-    if ! ${SED} -i '#image: flecs/webapp:#s#$#-'${WHITELABEL}'/' ${ROOT_DIR}/etc/opt/flecs/docker-compose.yml; then
-      log_error "Could not patch whitelabel"
-      return 1
-    fi
-  fi
-}
-
-enable_flecs() {
-  if [ ! -z "${SYSTEMCTL}" ]; then
-    ${SYSTEMCTL} is-enabled flecs >/dev/null 2>&1
-    if [ $? -ne 0 ]; then
-      if confirm_yn "FLECS is not enabled by default on your system. Enable and start FLECS now"; then
-        ${SYSTEMCTL} enable --now flecs >/dev/null 2>&1
-        ${SYSTEMCTL} enable --now flecs-webapp >/dev/null 2>&1
-      else
-        log_info "Use"
-        log_info "  systemctl enable --now flecs"
-        log_info "  systemctl enable --now flecs-webapp"
-        log_info "to enable and start FLECS"
-      fi
-    fi
-  elif [ ! -z "${UPDATE_RC_D}" ]; then
-    if confirm_yn "FLECS is not enabled by default on your system. Enable and start FLECS now"; then
-      ${UPDATE_RC_D} flecs defaults 81 81
-      ${UPDATE_RC_D} flecs-webapp defaults 80 80
-      /etc/init.d/flecs-webapp start
-      /etc/init.d/flecs start
-    else
-      log_info "Use"
-      log_info "  update-rc.d flecs defaults 81 81"
-      log_info "  update-rc.d flecs-webapp defaults 80 80"
-      log_info "  /etc/init.d/flecs-webapp start"
-      log_info "  /etc/init.d/flecs start"
-      log_info "to enable and start FLECS"
-    fi
-  elif [ ! -z "${DOCKER_COMPOSE}" ]; then
-    if confirm_yn "FLECS is not enabled by default on your system. Enable and start FLECS now"; then
-      ${DOCKER_COMPOSE} -f `readlink -f ${ROOT_DIR}/etc/opt/flecs/docker-compose.yml` up -d
-    else
-      log_info "Use"
-      log_info "  docker-compose -f `readlink -f ${ROOT_DIR}/etc/opt/flecs/docker-compose.yml` up -d"
-      log_info "to enable and start FLECS"
-    fi
   fi
 }
 
@@ -1087,19 +912,13 @@ if [ -z "${FLECS_TESTING}" ]; then
   if [ -z "${DOCKER}" ]; then
     install_docker
   fi
-  start_docker
+  # check if Docker is running and auto start is enabled
+  start_and_enable_docker
   determine_docker_version
   verify_docker_version
   if [ $? -eq ${DOCKER_OUTDATED} ]; then
-    if [ "${CODENAME}" = "buster" ]; then
-      if confirm_yn "Upgrade to docker-ce from official docker.com sources"; then
-        install_docker
-      else
-        log_fatal "Please upgrade your Docker installation before installing FLECS"
-      fi
-    else
-      log_fatal "Please upgrade your Docker installation before installing FLECS"
-    fi
+    log_error "FLECS requires at least Docker version ${MIN_DOCKER_CLIENT_VERSION} (${DOCKER_CLIENT_VERSION} available)"
+    log_fatal "Please upgrade your Docker installation before installing FLECS"
   fi
 
   # query latest FLECS version online
@@ -1109,9 +928,6 @@ if [ -z "${FLECS_TESTING}" ]; then
 
   # perform installation
   apply_whitelabel
-
-  # enable service, if not automatic
-  enable_flecs
 
   log_info "FLECS was successfully installed!"
 fi
