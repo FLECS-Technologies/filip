@@ -14,7 +14,7 @@ version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "819e7219dbd41043ac279b19830f2efc897156490d7fd6ea916720117ee66311"
 dependencies = [
- "libc",
+ "libc 0.2.180",
 ]
 
 [[package]]
@@ -242,7 +242,7 @@ version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
- "libc",
+ "libc 0.2.180",
  "windows-sys 0.61.2",
 ]
 
@@ -290,8 +290,8 @@ dependencies = [
  "async-signal",
  "bollard",
  "futures-util",
- "libc",
- "procfs",
+ "ipnet",
+ "net-spider",
  "thiserror",
  "tokio",
 ]
@@ -492,7 +492,7 @@ dependencies = [
  "http",
  "http-body",
  "hyper",
- "libc",
+ "libc 0.2.180",
  "pin-project-lite",
  "socket2",
  "tokio",
@@ -665,6 +665,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ipnet"
+version = "2.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "469fb0b9cefa57e3ef31275ee7cacb78f2fdca44e4765491884a2b119d4eb130"
+
+[[package]]
 name = "itoa"
 version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -685,6 +691,12 @@ name = "libc"
 version = "0.2.180"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bcc35a38544a891a5f7c865aca548a982ccb3b8650a5b06d0fd33a10283c56fc"
+
+[[package]]
+name = "libc"
+version = "1.0.0-alpha.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85272f924988b0557659867ecbb172a88990b2c5175bebd38c44956e7c74e701"
 
 [[package]]
 name = "linux-raw-sys"
@@ -726,9 +738,20 @@ version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a69bcab0ad47271a0234d9422b131806bf3968021e5dc9328caf2d4cd58557fc"
 dependencies = [
- "libc",
+ "libc 0.2.180",
  "wasi",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "net-spider"
+version = "0.1.0"
+source = "git+https://codeberg.org/flecs-tech/net-spider.git?rev=5112346023b4f67bbce0f75596be6dc147148d6e#5112346023b4f67bbce0f75596be6dc147148d6e"
+dependencies = [
+ "ipnet",
+ "libc 1.0.0-alpha.2",
+ "procfs",
+ "thiserror",
 ]
 
 [[package]]
@@ -875,7 +898,7 @@ checksum = "146c9e247ccc180c1f61615433868c99f3de3ae256a30a43b49f67c2d9171f34"
 dependencies = [
  "bitflags",
  "errno",
- "libc",
+ "libc 0.2.180",
  "linux-raw-sys",
  "windows-sys 0.61.2",
 ]
@@ -1013,7 +1036,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4db69cba1110affc0e9f7bcd48bbf87b3f4fc7c61fc9155afd4c469eb3d6c1b"
 dependencies = [
  "errno",
- "libc",
+ "libc 0.2.180",
 ]
 
 [[package]]
@@ -1040,7 +1063,7 @@ version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "86f4aa3ad99f2088c990dfa82d367e19cb29268ed67c574d10d0a4bfe71f07e0"
 dependencies = [
- "libc",
+ "libc 0.2.180",
  "windows-sys 0.60.2",
 ]
 
@@ -1140,7 +1163,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72a2903cd7736441aac9df9d7688bd0ce48edccaadf181c3b90be801e81d3d86"
 dependencies = [
  "bytes",
- "libc",
+ "libc 0.2.180",
  "mio",
  "pin-project-lite",
  "signal-hook-registry",
