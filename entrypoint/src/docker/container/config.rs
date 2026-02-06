@@ -13,10 +13,13 @@ pub type ContainerConfig = (CreateContainerOptions, ContainerCreateBody);
 const CONTAINER_REGISTRY: &str = "flecspublic.azurecr.io";
 const CORE_IMAGE: &str = "flecs-slim";
 const CORE_VERSION: &str = "5.1.0-red-deer";
+const CORE_VERSION_ENV: &str = "VERSION_CORE";
 const FLOXY_IMAGE: &str = "flecs/floxy";
 const FLOXY_VERSION: &str = "0.2.1";
 const WEBAPP_IMAGE: &str = "webapp";
 const WEBAPP_VERSION: &str = "5.1.0-red-deer";
+const WEBAPP_VERSION_ENV: &str = "VERSION_WEBAPP";
+const WHITELABEL_ENV: &str = "WHITELABEL";
 fn docker_socket_mount() -> Mount {
     Mount {
         typ: Some(MountTypeEnum::BIND),
@@ -74,13 +77,15 @@ pub fn floxy_container_config(
 }
 
 pub fn core_container_config() -> ContainerConfig {
+    let version = std::env::var(CORE_VERSION_ENV);
+    let version = version.as_deref().unwrap_or(CORE_VERSION);
     (
         CreateContainerOptions {
             name: Some(CORE_CONTAINER_NAME.to_string()),
             ..CreateContainerOptions::default()
         },
         ContainerCreateBody {
-            image: Some(format!("{CONTAINER_REGISTRY}/{CORE_IMAGE}:{CORE_VERSION}")),
+            image: Some(format!("{CONTAINER_REGISTRY}/{CORE_IMAGE}:{version}")),
             hostname: Some(CORE_CONTAINER_NAME.to_string()),
             host_config: Some(HostConfig {
                 network_mode: Some("host".to_string()),
@@ -107,15 +112,19 @@ pub fn core_container_config() -> ContainerConfig {
 }
 
 pub fn webapp_container_config(ip: Ipv4Addr, gateway: Ipv4Addr) -> ContainerConfig {
+    let version = std::env::var(WEBAPP_VERSION_ENV);
+    let version = version.as_deref().unwrap_or(WEBAPP_VERSION);
+    let tag = match std::env::var(WHITELABEL_ENV) {
+        Ok(whitelabel) => format!("{version}-{whitelabel}"),
+        _ => version.to_string(),
+    };
     (
         CreateContainerOptions {
             name: Some(WEBAPP_CONTAINER_NAME.to_string()),
             ..CreateContainerOptions::default()
         },
         ContainerCreateBody {
-            image: Some(format!(
-                "{CONTAINER_REGISTRY}/{WEBAPP_IMAGE}:{WEBAPP_VERSION}"
-            )),
+            image: Some(format!("{CONTAINER_REGISTRY}/{WEBAPP_IMAGE}:{tag}")),
             host_config: Some(HostConfig {
                 extra_hosts: Some(vec![format!("flecs-floxy:{gateway}")]),
                 ..HostConfig::default()
