@@ -18,7 +18,6 @@ cat <<'EOF' > /tmp/filip.sh
 ME="FILiP"
 SCRIPTNAME=`readlink -f ${0}`
 ARGS="$*"
-ROOT_DIR=/
 STDOUT=/dev/null
 STDERR=/dev/null
 
@@ -191,15 +190,6 @@ parse_args() {
         ;;
       --dev)
         BASE_URL=dl-dev.flecs.tech
-        ;;
-      --root-dir)
-        ROOT_DIR=${2}
-        if [ -z "${ROOT_DIR}" ]; then
-          log_error "argument --root-dir requires a value"
-          log_error -q
-          print_usage
-          exit 1
-        fi
         ;;
       --core-version)
         VERSION_CORE=${2}
