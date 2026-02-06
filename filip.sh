@@ -817,6 +817,31 @@ start_flecs() {
   fi
 }
 
+apt_remove() {
+  local out
+
+  out="$(apt list --installed ${1} 2>/dev/null)"
+  if [ $? -ne 0 ]; then
+    log_fatal "Failed to check if ${1} is installed"
+  elif grep -q "${1}/" <<<"$out"; then
+    log_debug "Removing ${1}..."
+    if apt remove -y ${1} >/dev/null 2>&1; then
+      log_debug " OK"
+    else
+      log_fatal "Failed to remove ${1}"
+    fi
+  fi
+}
+
+remove_old_flecs() {
+  if ! have apt; then
+    return 0
+  fi
+
+  apt_remove flecs-webapp
+  apt_remove flecs
+}
+
 if [ -z "${FLECS_TESTING}" ]; then
   parse_args $*
   banner
@@ -904,6 +929,10 @@ if [ -z "${FLECS_TESTING}" ]; then
   # query latest FLECS version online
   if ! determine_latest_version; then
     log_fatal "Could not determine latest version of FLECS"
+  fi
+
+  if ! remove_old_flecs; then
+    log_fatal "Could not remove old version of FLECS, please remove it manually"
   fi
 
   start_flecs
