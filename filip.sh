@@ -794,25 +794,6 @@ determine_latest_core_version() {
   fi
 }
 
-apply_whitelabel() {
-  if [ -z "${WHITELABEL}" ]; then
-    return 0;
-  fi
-
-  if [ -z "${SED}" ]; then
-    log_error "Cannot patch whitelabel: sed not found"
-    return 1
-  fi
-
-  if [ ! -z "${SYSTEMCTL}" ]; then
-    if ! ${SED} -i '/^DOCKER_TAG=/s/$/-'${WHITELABEL}'/' /opt/flecs-webapp/bin/flecs-webapp.sh; then
-      log_error "Could not patch whitelabel"
-      return 1
-    fi
-    ${SYSTEMCTL} try-restart flecs-webapp
-  fi
-}
-
 banner() {
   if [ -z "${NO_BANNER}" ]; then
     echo "                      ▒▒▒▒▒▒▒▒  ▒▒  ▒▒        ▒▒  ▒▒▒▒▒▒▒                       "
@@ -915,9 +896,6 @@ if [ -z "${FLECS_TESTING}" ]; then
   if ! determine_latest_version; then
     log_fatal "Could not determine latest version of FLECS"
   fi
-
-  # perform installation
-  apply_whitelabel
 
   log_info "FLECS was successfully installed!"
 fi
