@@ -808,6 +808,15 @@ banner() {
   fi
 }
 
+start_flecs() {
+  local ENV="-e VERSION_CORE=${VERSION_CORE} -e VERSION_WEBAPP=${VERSION_WEBAPP}${WHITELABEL:+ -e WHITELABEL=${WHITELABEL}}"
+  docker container rm -f flecs >/dev/null 2>&1
+  docker container run --detach --name flecs ${ENV} --network host --restart always --volume /var/run/docker.sock:/var/run/docker.sock flecspublic.azurecr.io/flecs/flecs:latest >/dev/null
+  if [ $? -ne 0 ]; then
+    log_fatal "Failed to start flecs"
+  fi
+}
+
 if [ -z "${FLECS_TESTING}" ]; then
   parse_args $*
   banner
@@ -897,7 +906,8 @@ if [ -z "${FLECS_TESTING}" ]; then
     log_fatal "Could not determine latest version of FLECS"
   fi
 
-  log_info "FLECS was successfully installed!"
+  start_flecs
+  log_info "FLECS was successfully started!"
 fi
 EOF
 
