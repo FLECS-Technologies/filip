@@ -8,6 +8,8 @@ on:
 
 jobs:
   build-and-push:
+    # Remove runs-on, as soon as workflow expansion is supported by codeberg
+    runs-on: ubuntu-24.04
     name: Build and push dev ${{ github.event_name == 'pull_request' && '(dry-run)' || '' }}
     uses: ./.github/workflows/build-and-push.yml
     with:
