@@ -14,7 +14,7 @@ If your operating system is not supported by this script you can still install f
 Docker needs to be installed on your system for this to work.
 
 ```bash
-docker create --name flecs --restart=always --network host --volume /var/run/docker.sock:/var/run/docker.sock flecspublic.azurecr.io/flecs/flecs:latest
+docker create --name flecs --restart=always --network host --volume /var/run/docker.sock:/var/run/docker.sock flecspublic.azurecr.io/flecs/filip:latest
 docker container start flecs
 ```
 

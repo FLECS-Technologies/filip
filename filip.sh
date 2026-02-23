@@ -811,7 +811,7 @@ banner() {
 start_flecs() {
   local ENV="-e VERSION_CORE=${VERSION_CORE} -e VERSION_WEBAPP=${VERSION_WEBAPP}${WHITELABEL:+ -e WHITELABEL=${WHITELABEL}}"
   docker container rm -f flecs >/dev/null 2>&1
-  docker container run --detach --name flecs ${ENV} --network host --restart always --volume /var/run/docker.sock:/var/run/docker.sock flecspublic.azurecr.io/flecs/flecs:latest >/dev/null
+  docker container run --detach --name flecs ${ENV} --network host --restart always --volume /var/run/docker.sock:/var/run/docker.sock flecspublic.azurecr.io/flecs/filip:latest >/dev/null
   if [ $? -ne 0 ]; then
     log_fatal "Failed to start flecs"
   fi
