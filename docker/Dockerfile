@@ -19,13 +19,13 @@ WORKDIR /src/entrypoint
 RUN /tmp/scripts/build.sh
 
 # ==============================================================================
-# staging: Merges our custom entrypoint with the nginx base image to build an
+# staging: Merges our custom entrypoint with the alpine base image to build an
 #   intermediate image for validation.
 # ==============================================================================
 FROM alpine:3 AS staging-release
 
 # rootfs
-COPY docker/fs/ /staging/
+# empty
 
 # executables
 COPY --from=entrypoint /entrypoint /staging/entrypoint
@@ -34,7 +34,7 @@ COPY --from=entrypoint /entrypoint /staging/entrypoint
 FROM alpine:3 AS staging-debug
 
 # rootfs
-COPY docker/fs/ /staging/
+COPY --from=alpine:3 / /staging/
 
 # executables
 COPY --from=entrypoint /entrypoint /staging/entrypoint
@@ -56,7 +56,7 @@ RUN apk add --no-cache \
 
 COPY docker/scripts/ /tmp/scripts
 
-RUN /tmp/scripts/validate.sh
+RUN sh -x /tmp/scripts/validate.sh
 # ==============================================================================
 FROM alpine:3 AS validation-debug
 
@@ -70,7 +70,7 @@ RUN apk add --no-cache \
 
 COPY docker/scripts/ /tmp/scripts
 
-RUN /tmp/scripts/validate.sh
+RUN sh -x /tmp/scripts/validate.sh
 
 # ==============================================================================
 # final: Copies the rootfs validation and finalizes the build by setting our entrypoint.
