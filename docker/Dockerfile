@@ -19,13 +19,13 @@ WORKDIR /src/entrypoint
 RUN /tmp/scripts/build.sh
 
 # ==============================================================================
-# staging: Merges our custom entrypoint with the alpine base image to build an
-#   intermediate image for validation.
+# staging: Merges our custom entrypoint with the distroless debian 13 base image
+#   to build an intermediate image for validation.
 # ==============================================================================
 FROM alpine:3 AS staging-release
 
 # rootfs
-# empty
+COPY --from=gcr.io/distroless/static-debian13 / /staging/
 
 # executables
 COPY --from=entrypoint /entrypoint /staging/entrypoint
@@ -34,7 +34,7 @@ COPY --from=entrypoint /entrypoint /staging/entrypoint
 FROM alpine:3 AS staging-debug
 
 # rootfs
-COPY --from=alpine:3 / /staging/
+COPY --from=gcr.io/distroless/static-debian13:debug / /staging/
 
 # executables
 COPY --from=entrypoint /entrypoint /staging/entrypoint

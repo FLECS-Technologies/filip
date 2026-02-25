@@ -18,8 +18,8 @@ if ! file /final/entrypoint | grep "${EXPECTED_ARCH}" >/dev/null 2>&1; then
 fi
 
 if [ "${BUILD_TYPE}" = "release" ]; then
-    if [ -f /final/bin/sh ]; then
-        echo 'Error: `sh` present in release build' 1>&2
+    if [ -f /final/busybox/busybox ]; then
+        echo 'Error: `busybox` present in release build' 1>&2
         exit 1
     fi
     if file /final/entrypoint | grep "not stripped"; then
@@ -27,8 +27,8 @@ if [ "${BUILD_TYPE}" = "release" ]; then
         exit 1
     fi
 else
-    if [ ! -f /final/bin/sh ]; then
-        echo 'Error: No `sh` present in debug build' 1>&2
+    if [ ! -f /final/busybox/busybox ]; then
+        echo 'Error: No `busybox` present in debug build' 1>&2
         exit 1
     fi
     if ! file /final/entrypoint | grep "not stripped"; then
