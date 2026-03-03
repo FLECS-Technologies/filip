@@ -190,6 +190,7 @@ parse_args() {
         ;;
       --dev)
         BASE_URL=dl-dev.flecs.tech
+        DEV_MODE=1
         ;;
       --core-version)
         VERSION_CORE=${2}
@@ -204,6 +205,15 @@ parse_args() {
         VERSION_WEBAPP=${2}
         if [ -z "${VERSION_WEBAPP}" ]; then
           log_error "argument --webapp-version requires a value"
+          log_error -q
+          print_usage
+          exit 1
+        fi
+        ;;
+      --filip-version)
+        VERSION_FILIP=${2}
+        if [ -z "${VERSION_FILIP}" ]; then
+          log_error "argument --filip-version requires a value"
           log_error -q
           print_usage
           exit 1
@@ -810,8 +820,14 @@ banner() {
 
 start_flecs() {
   local ENV="-e VERSION_CORE=${VERSION_CORE} -e VERSION_WEBAPP=${VERSION_WEBAPP}${WHITELABEL:+ -e WHITELABEL=${WHITELABEL}}"
+  local FILIP_TAG="latest"
+  if [ -n "$VERSION_FILIP" ]; then
+    FILIP_TAG="$VERSION_FILIP"
+  elif [ "$DEV_MODE" = "1" ]; then
+    FILIP_TAG="dev"
+  fi
   docker container rm -f flecs >/dev/null 2>&1
-  docker container run --detach --name flecs ${ENV} --network host --restart always --volume /var/run/docker.sock:/var/run/docker.sock flecspublic.azurecr.io/flecs/filip:latest >/dev/null
+  docker container run --detach --name flecs ${ENV} --network host --restart always --volume /var/run/docker.sock:/var/run/docker.sock flecspublic.azurecr.io/flecs/filip:${FILIP_TAG} >/dev/null
   if [ $? -ne 0 ]; then
     log_fatal "Failed to start flecs"
   fi
