@@ -272,7 +272,7 @@ have() {
   if [ -z "${!TOOL}" ]; then
     declare -g ${TOOL}=`have_program ${1}`
   fi
-  [ ! -z "${!TOOL}" ] && log_debug -q " found" || log_debug -q " not found"
+  [ ! -z "${!TOOL}" ] && log_debug -q " found" || (log_debug -q " not found" && return 1)
 }
 
 # wrapper for apt-get update
