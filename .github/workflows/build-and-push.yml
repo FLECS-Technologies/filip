@@ -55,10 +55,6 @@ jobs:
           files: docker-bake.hcl
           pull: true
           push: ${{ inputs.dry-run == false }}
-          set: |
-            *.cache-from=type=gha,scope=latest
-            *.cache-from=type=gha,scope=rc
-            *.cache-to=type=gha,mode=max,scope=${{ inputs.channel }}
 
       - name: Build ${{ inputs.dry-run == false && 'and push' || '' }} Docker image without VERSIONS
         if: inputs.versions == null || inputs.versions == ''
@@ -70,7 +66,3 @@ jobs:
           files: docker-bake.hcl
           pull: true
           push: ${{ inputs.dry-run == false }}
-          set: |
-            *.cache-from=type=gha,scope=latest
-            *.cache-from=type=gha,scope=rc
-            *.cache-to=type=gha,mode=max,scope=${{ inputs.channel }}
