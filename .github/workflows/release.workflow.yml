@@ -85,17 +85,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare release directory
-        run: |
-          mkdir -p dist/
-          cp filip.sh dist/
-
       - name: Upload Release assets
-        uses: actions/forgejo-release@v2
+        uses: https://git.michaelsasser.org/actions/upload-release-assets@a3c4d716a7d72233debf6f1ce321e5c41eb7957c
         with:
-          direction: upload
-          url: https://codeberg.org
-          repo: ${{ forgejo.repository }}
+          assets: |
+            filip.sh
+          create_sha256: "true"
           token: ${{ secrets.GH_REPO_WRITE }}
           tag: ${{ forgejo.ref_name }}
-          release-dir: dist/
