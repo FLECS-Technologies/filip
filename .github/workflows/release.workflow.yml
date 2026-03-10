@@ -72,12 +72,18 @@ jobs:
           git add -- ./entrypoint/Cargo.{lock,toml}
           git commit -m "Auto-bump version after release"
 
-      - name: Push version bump
+      - name: Push version bump (Release)
         if: ${{ github.event.release.prerelease == false }}
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           git push origin "${DEFAULT_BRANCH}"
+
+      - name: Push version bump (Prerelease)
+        if: ${{ github.event.release.prerelease == true }}
+        run: |
+          BRANCH="prerelease/${{ forgejo.ref_name }}"
+          git push origin "$BRANCH"
 
   release:
     runs-on: ubuntu-24.04
