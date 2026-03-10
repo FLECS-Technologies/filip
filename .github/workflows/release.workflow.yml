@@ -83,7 +83,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Release
-        uses: softprops/action-gh-release@v1
+      - name: Prepare release directory
+        run: |
+          mkdir -p dist/
+          cp filip.sh dist/
+
+      - name: Upload Release assets
+        uses: actions/forgejo-release@v2
         with:
-          files: filip.sh
+          direction: upload
+          url: https://codeberg.org
+          repo: ${{ forgejo.repository }}
+          token: ${{ secrets.GH_REPO_WRITE }}
+          tag: ${{ forgejo.ref_name }}
+          release-dir: dist/
