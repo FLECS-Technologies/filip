@@ -34,6 +34,8 @@ jobs:
   build-and-push:
     name: Build and push latest ${{ github.event.release.prerelease && '(dry-run)' || '' }}
     needs: determine-version-tags
+    # Remove runs-on, as soon as workflow expansion is supported by codeberg
+    runs-on: ubuntu-24.04
     if: success()
     uses: ./.github/workflows/build-and-push.yml
     with:
