@@ -28,7 +28,8 @@ jobs:
             | jq -r '.packages[0].version')
           MAJOR_VERSION=$(printf '%s\n' "$VERSION" | cut -d. -f1)
           MINOR_VERSION=$(printf '%s\n' "$VERSION" | cut -d. -f1,2)
-          set -- "$MAJOR_VERSION" "$MINOR_VERSION" "$VERSION"
+          set -- "$MAJOR_VERSION" "$MINOR_VERSION" "$VERSION" \
+                 "v${MAJOR_VERSION}" "v${MINOR_VERSION}" "v${VERSION}"
           printf 'version-list=%s\n' "$(IFS=,; printf '%s' "$*")" >>"$GITHUB_OUTPUT"
 
   build-and-push:
