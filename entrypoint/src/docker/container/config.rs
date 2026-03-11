@@ -12,12 +12,12 @@ use std::net::Ipv4Addr;
 pub type ContainerConfig = (CreateContainerOptions, ContainerCreateBody);
 const CONTAINER_REGISTRY: &str = "flecspublic.azurecr.io";
 const CORE_IMAGE: &str = "flecs-slim";
-const CORE_VERSION: &str = "5.1.0-red-deer";
+const CORE_VERSION: &str = "latest";
 const CORE_VERSION_ENV: &str = "VERSION_CORE";
 const FLOXY_IMAGE: &str = "flecs/floxy";
 const FLOXY_VERSION: &str = "0";
 const WEBAPP_IMAGE: &str = "webapp";
-const WEBAPP_VERSION: &str = "5.1.0-red-deer";
+const WEBAPP_VERSION: &str = "latest";
 const WEBAPP_VERSION_ENV: &str = "VERSION_WEBAPP";
 const WHITELABEL_ENV: &str = "WHITELABEL";
 fn docker_socket_mount() -> Mount {
