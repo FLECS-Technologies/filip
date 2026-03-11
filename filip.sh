@@ -22,7 +22,7 @@ STDOUT=/dev/null
 STDERR=/dev/null
 
 BASE_PROTO=https
-BASE_URL=dl.flecs.tech
+BASE_URL=latest.flecs.tech
 
 print_usage() {
   echo "Usage: ${SCRIPTNAME}" [options]
@@ -189,7 +189,6 @@ parse_args() {
         NO_BANNER=1
         ;;
       --dev)
-        BASE_URL=dl-dev.flecs.tech
         DEV_MODE=1
         ;;
       --core-version)
@@ -415,12 +414,12 @@ verify_tools() {
 check_connectivity() {
   log_info -n "Checking internet connectivity..."
   if [ ! -z "${CURL}" ]; then
-    if ${CURL} ${BASE_PROTO}://${BASE_URL} 1>${STDOUT} 2>${STDERR}; then
+    if ${CURL} http://flecs.tech 1>${STDOUT} 2>${STDERR}; then
       echo "OK"
       return 0
     fi
  elif [ ! -z "${WGET}" ]; then
-    if ${WGET} -q ${BASE_PROTO}://${BASE_URL} 1>${STDOUT} 2>${STDERR}; then
+    if ${WGET} -q http://flecs.tech 1>${STDOUT} 2>${STDERR}; then
       echo "OK"
       return 0
     fi
@@ -774,10 +773,10 @@ determine_latest_webapp_version() {
   log_info -n "Determining latest FLECS webapp version..."
   # try through curl first, if available
   if [ ! -z "${CURL}" ]; then
-    VERSION_WEBAPP=`${CURL} -fsSL ${BASE_PROTO}://${BASE_URL}/webapp/latest_flecs-webapp_${ARCH}`
+    VERSION_WEBAPP=`${CURL} -s ${BASE_PROTO}://${BASE_URL}/webapp`
   # use wget as fallback, if available
   elif [ ! -z "${WGET}" ]; then
-    VERSION_WEBAPP=`${WGET} -q -O - ${BASE_PROTO}://${BASE_URL}/webapp/latest_flecs-webapp_${ARCH}`
+    VERSION_WEBAPP=`${WGET} -q -O - ${BASE_PROTO}://${BASE_URL}/webapp`
   fi
   if [ ! -z "${VERSION_WEBAPP}" ]; then
     echo " OK"
@@ -791,10 +790,10 @@ determine_latest_core_version() {
   log_info -n "Determining latest FLECS core version..."
   # try through curl first, if available
   if [ ! -z "${CURL}" ]; then
-    VERSION_CORE=`${CURL} -fsSL ${BASE_PROTO}://${BASE_URL}/flecs/latest_flecs_${ARCH}`
+    VERSION_CORE=`${CURL} -s ${BASE_PROTO}://${BASE_URL}/core`
   # use wget as fallback, if available
   elif [ ! -z "${WGET}" ]; then
-    VERSION_CORE=`${WGET} -q -O - ${BASE_PROTO}://${BASE_URL}/flecs/latest_flecs_${ARCH}`
+    VERSION_CORE=`${WGET} -q -O - ${BASE_PROTO}://${BASE_URL}/core`
   fi
   if [ ! -z "${VERSION_CORE}" ]; then
     echo " OK"
