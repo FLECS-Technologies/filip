@@ -5,6 +5,9 @@ use ipnet::Ipv4Net;
 use net_spider::network_adapter::NetworkAdapterReader;
 use std::net::{AddrParseError, IpAddr, Ipv4Addr};
 
+const FLOXY_HTTP_PORT_ENV: &str = "FLOXY_HTTP_PORT";
+const FLOXY_HTTPS_PORT_ENV: &str = "FLOXY_HTTPS_PORT";
+
 #[derive(thiserror::Error, Debug)]
 pub enum NetworkSetupError {
     #[error(transparent)]
@@ -17,6 +20,11 @@ pub enum NetworkSetupError {
     PortBusy(&'static str),
     #[error(transparent)]
     NetSpider(#[from] net_spider::Error),
+    #[error("Invalid environment variable {variable_name}: {message}")]
+    InvalidEnvironment {
+        variable_name: &'static str,
+        message: String,
+    },
 }
 
 pub const FLECS_NETWORK_NAME: &str = "flecs";
@@ -42,18 +50,40 @@ pub struct NetworkInfo {
     pub gateway: Ipv4Addr,
 }
 
+fn u16_from_env(variable_name: &'static str) -> Result<Option<u16>, NetworkSetupError> {
+    match std::env::var(variable_name) {
+        Ok(s) => Ok(Some(s.parse::<u16>().map_err(|e| {
+            NetworkSetupError::InvalidEnvironment {
+                variable_name,
+                message: e.to_string(),
+            }
+        })?)),
+        Err(std::env::VarError::NotPresent) => Ok(None),
+        Err(e) => Err(NetworkSetupError::InvalidEnvironment {
+            variable_name,
+            message: e.to_string(),
+        }),
+    }
+}
+
 pub async fn network_setup(docker_client: &Docker) -> Result<NetworkInfo, NetworkSetupError> {
     let busy_ports = net_spider::tcp::get_busy_ports()?;
-    let free_http_port = HTTP_PORTS
-        .iter()
-        .find(|port| !busy_ports.contains(port))
-        .copied()
-        .ok_or_else(|| NetworkSetupError::PortBusy("http"))?;
-    let free_https_port = HTTPS_PORTS
-        .iter()
-        .find(|port| !busy_ports.contains(port))
-        .copied()
-        .ok_or_else(|| NetworkSetupError::PortBusy("https"))?;
+    let free_http_port = match u16_from_env(FLOXY_HTTP_PORT_ENV)? {
+        Some(port) => port,
+        None => HTTP_PORTS
+            .iter()
+            .find(|port| !busy_ports.contains(port))
+            .copied()
+            .ok_or_else(|| NetworkSetupError::PortBusy("http"))?,
+    };
+    let free_https_port = match u16_from_env(FLOXY_HTTPS_PORT_ENV)? {
+        Some(port) => port,
+        None => HTTPS_PORTS
+            .iter()
+            .find(|port| !busy_ports.contains(port))
+            .copied()
+            .ok_or_else(|| NetworkSetupError::PortBusy("https"))?,
+    };
     let gateway = flecs_network_setup(docker_client).await?;
     Ok(NetworkInfo {
         free_https_port,

@@ -32,7 +32,8 @@ print_usage() {
   echo "     --no-banner             do not print ${ME} banner"
   echo "     --no-welcome            do not print welcome message"
   echo "     --core-version <ver>    Install version <ver> of flecs-core instead of the latest version"
-  echo "     --webapp-version <ver>  Install version <ver> of flecs-webapp instead of the latest version"
+  echo "     --http-port <port>      use <port> for accessing the reverse proxy via http"
+  echo "     --https-port <port>     use <port> for accessing the reverse proxy via https"
   echo "     --help                  print this help and exit"
 }
 
@@ -222,6 +223,24 @@ parse_args() {
         WHITELABEL=${2}
         if [ -z "${WHITELABEL}" ]; then
           log_error "argument --whitelabel requires a value"
+          log_error -q
+          print_usage
+          exit 1
+        fi
+        ;;
+      --http-port)
+        HTTP_PORT=${2}
+        if [ -z "${HTTP_PORT}" ]; then
+          log_error "argument --http-port requires a value"
+          log_error -q
+          print_usage
+          exit 1
+        fi
+        ;;
+      --https-port)
+        HTTPS_PORT=${2}
+        if [ -z "${HTTPS_PORT}" ]; then
+          log_error "argument --https-port requires a value"
           log_error -q
           print_usage
           exit 1
@@ -819,6 +838,7 @@ banner() {
 
 start_flecs() {
   local ENV="-e VERSION_CORE=${VERSION_CORE} -e VERSION_WEBAPP=${VERSION_WEBAPP}${WHITELABEL:+ -e WHITELABEL=${WHITELABEL}}"
+  ENV+="${HTTP_PORT:+ -e FLOXY_HTTP_PORT=${HTTP_PORT}}${HTTPS_PORT:+ -e FLOXY_HTTPS_PORT=${HTTPS_PORT}}"
   local FILIP_TAG="latest"
   if [ -n "$VERSION_FILIP" ]; then
     FILIP_TAG="$VERSION_FILIP"
