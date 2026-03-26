@@ -32,6 +32,7 @@ print_usage() {
   echo "     --no-banner             do not print ${ME} banner"
   echo "     --no-welcome            do not print welcome message"
   echo "     --core-version <ver>    Install version <ver> of flecs-core instead of the latest version"
+  echo "     --webapp-version <ver>  Install version <ver> of flecs-webapp instead of the latest version"
   echo "     --http-port <port>      use <port> for accessing the reverse proxy via http"
   echo "     --https-port <port>     use <port> for accessing the reverse proxy via https"
   echo "     --help                  print this help and exit"
