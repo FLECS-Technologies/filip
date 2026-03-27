@@ -2,6 +2,11 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Dry run (skip pushing images and version bump)'
+        type: boolean
+        default: true
   release:
     types: [published]
 
@@ -41,7 +46,7 @@ jobs:
     if: success()
     uses: ./.github/workflows/build-and-push.yml
     with:
-      dry-run: ${{ github.event.release.prerelease }}
+      dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run || github.event.release.prerelease }}
       channel: latest
       versions: ${{ needs.determine-version-tags.outputs.version-list }}
     secrets: inherit
@@ -76,7 +81,7 @@ jobs:
           git commit -m "Auto-bump version after release"
 
       - name: Push version bump (Release)
-        if: ${{ github.event.release.prerelease == false }}
+        if: ${{ (github.event_name == 'workflow_dispatch' && !inputs.dry-run) || github.event.release.prerelease == false }}
         env:
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
