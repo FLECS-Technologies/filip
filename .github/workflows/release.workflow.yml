@@ -29,9 +29,7 @@ jobs:
       - name: Parse Cargo.toml
         id: parse-cargo-versions
         run: |
-          cd entrypoint
-          VERSION=$(cargo metadata --no-deps --format-version 1 \
-            | jq -r '.packages[0].version')
+          VERSION=$(tomlq -r '.package.version' entrypoint/Cargo.toml)
           MAJOR_VERSION=$(printf '%s\n' "$VERSION" | cut -d. -f1)
           MINOR_VERSION=$(printf '%s\n' "$VERSION" | cut -d. -f1,2)
           set -- "$MAJOR_VERSION" "$MINOR_VERSION" "$VERSION" \
