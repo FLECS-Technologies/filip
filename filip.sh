@@ -319,12 +319,12 @@ verify_tools() {
 check_connectivity() {
   log_info -n "  Internet connectivity..."
   if [ -n "${CURL}" ]; then
-    if ${CURL} https://flecs.tech 1>${STDOUT} 2>${STDERR}; then
+    if ${CURL} https://flecs.tech 1>/dev/null 2>${STDERR}; then
       log_info " ✅"
       return 0
     fi
   elif [ -n "${WGET}" ]; then
-    if ${WGET} -q https://flecs.tech 1>${STDOUT} 2>${STDERR}; then
+    if ${WGET} -q https://flecs.tech 1>/dev/null 2>${STDERR}; then
       log_info " ✅"
       return 0
     fi
