@@ -518,7 +518,7 @@ verify_os() {
 determine_docker_version() {
   log_info -n "Determining Docker version..."
   if [ -z "${DOCKER}" ]; then
-    echo " none"
+    log_info -q " none"
     log_fatal "Docker is not installed on your device"
   fi
 
@@ -534,12 +534,12 @@ determine_docker_version() {
     TIMEOUT=$((TIMEOUT-1))
   done
   if [ ! -z "${SED}" ]; then
-    DOCKER_CLIENT_VERSION=`${DOCKER} -v 2>/dev/null | ${SED} -nE 's/^[^0-9]+([0-9\.]+).*$/\1/p'`
+    DOCKER_CLIENT_VERSION=$(${DOCKER} -v 2>/dev/null | ${SED} -nE 's/^[^0-9]+([0-9\.]+).*$/\1/p')
   elif [ ! -z "${GREP}" ]; then
-    DOCKER_CLIENT_VERSION=`${DOCKER} -v 2>/dev/null | ${GREP} -oP "([0-9]+[\.]){2}[0-9]+" | ${HEAD} -n1`
+    DOCKER_CLIENT_VERSION=$(${DOCKER} -v 2>/dev/null | ${GREP} -oP "([0-9]+[\.]){2}[0-9]+" | ${HEAD} -n1)
   fi
 
-  echo " found ${DOCKER_NAME}"
+  log_info -q " ${DOCKER_NAME} found"
 
   DOCKER_API_VERSION="unknown"
   if ! ${DOCKER} version >/dev/null 2>&1; then
@@ -547,7 +547,7 @@ determine_docker_version() {
     log_warning "    'systemctl enable --now docker.service' or"
     log_warning "    '/etc/init.d/docker start'"
   else
-    DOCKER_API_VERSION=`${DOCKER} version --format '{{.Server.APIVersion}}' 2>/dev/null`
+    DOCKER_API_VERSION=$(${DOCKER} version --format '{{.Server.APIVersion}}' 2>/dev/null)
   fi
 
   if [ -z "${DOCKER_API_VERSION}" ] || [ -z "${DOCKER_CLIENT_VERSION}" ]; then
@@ -590,79 +590,35 @@ verify_docker_version() {
 }
 
 install_docker_debian() {
-  echo "apt-get"
+  log_info "Installing docker.io via apt..."
   if ! apt_update; then
-    log_fatal "apt_update returned error in install_docker"
+    log_fatal "apt_update failed in install_docker"
   fi
   if ! apt_install docker.io; then
-    log_fatal "apt_install install returned error in install_docker"
-  fi
-}
-
-install_docker_fedora() {
-  echo " yum"
-  if [ -z "${YUM}" ]; then
-    internal_error "yum not present in install_docker_fedora"
-  fi
-  if ! yum_update; then
-    log_fatal "yum_update returned error in install_docker"
-  fi
-  if ! yum_install podman-docker; then
-    log_fatal "yum_install returned error in install_docker"
-  fi
-}
-
-install_docker_arch() {
-  echo " pacman"
-  if [ -z "${PACMAN}" ]; then
-    internal_error "pacman not present in install_docker_arch"
-  fi
-  if ! pacman_update; then
-    log_fatal "pacman_update returned error in install_docker"
-  fi
-  if ! pacman_install docker; then
-    log_fatal "pacman_install returned error in install_docker"
+    log_fatal "apt_install failed in install_docker"
   fi
 }
 
 install_docker() {
-  case ${OS_LIKE} in
-    debian)
-      log_info -n "Installing Docker using"
-      install_docker_debian ${CODENAME}
-      ;;
-    fedora)
-      log_warning "Automatic Docker installation on fedora is currently unsupported"
-      #install_docker_fedora
-      ;;
-    arch)
-      log_info -n "Installing Docker using"
-      install_docker_arch
-      ;;
-    *)
-      log_fatal "Docker not installed and cannot install automatically"
-  esac
+  if [ "${OS_LIKE}" != "debian" ]; then
+    log_fatal "Automatic Docker installation is only supported on Debian/Ubuntu-based systems"
+  fi
+  install_docker_debian
   log_info "Done installing Docker. Restarting..."
   exec "${SCRIPTNAME}" --no-banner --no-welcome ${ARGS}
 }
 
 start_and_enable_docker() {
-  if ! docker version >/dev/null 2>&1; then
+  if ! ${DOCKER} version >/dev/null 2>&1; then
     log_info -n "Attempting to start Docker..."
     if [ ! -z "${SYSTEMCTL}" ] && ${SYSTEMCTL} enable --now docker >/dev/null 2>&1; then
-      echo " OK (systemctl)"
+      log_info -q " OK (systemctl)"
       return 0
-    elif [ ! -z "${SERVICE}" ]; then
-      if [ ! -z "${CHKCONFIG}" ] && [ ! -z "${UPDATE_RC_D}" ]; then
-        if ! ${CHKCONFIG} docker on; then
-          ${UPDATE_RC_D} docker defaults
-        fi
-      fi
-      service docker start >/dev/null 2>&1;
-      echo " OK (init.d)"
+    elif [ ! -z "${SERVICE}" ] && ${SERVICE} docker start >/dev/null 2>&1; then
+      log_info -q " OK (init.d)"
       return 0
     fi
-    echo " failed"
+    log_info -q " failed"
     return 1
   fi
   return 0
