@@ -309,7 +309,7 @@ apt_update() {
 # wrapper for apt-get install
 apt_install() {
   log_debug "apt-get install $@"
-  if [ -z "${APT_GET}" ] || ! ${APT_GET} -y install --reinstall --allow-downgrades $@ 1>${STDOUT} 2>${STDERR}; then
+  if [ -z "${APT_GET}" ] || ! ${APT_GET} -y install --reinstall --no-install-recommends $@ 1>${STDOUT} 2>${STDERR}; then
     return 1
   fi
   return 0
@@ -594,7 +594,18 @@ install_docker_debian() {
   if ! apt_update; then
     log_fatal "apt_update failed in install_docker"
   fi
-  if ! apt_install docker.io; then
+
+  # Docker is split into docker.io and docker-cli for Debian 13+ and Ubuntu
+  # 25.04+. Add to PACKAGE list for these OSes.
+  local PACKAGES="docker.io"
+  case ${OS} in
+    debian|raspbian)
+      ! cmp_less "${OS_VERSION}" "13" && PACKAGES="${PACKAGES} docker-cli" ;;
+    ubuntu)
+      ! cmp_less "${OS_VERSION}" "25.04" && PACKAGES="${PACKAGES} docker-cli" ;;
+  esac
+
+  if ! apt_install "${PACKAGES}"; then
     log_fatal "apt_install failed in install_docker"
   fi
 }
@@ -608,20 +619,29 @@ install_docker() {
   exec "${SCRIPTNAME}" --no-banner --no-welcome ${ARGS}
 }
 
-start_and_enable_docker() {
-  if ! ${DOCKER} version >/dev/null 2>&1; then
-    log_info -n "Attempting to start Docker..."
-    if [ ! -z "${SYSTEMCTL}" ] && ${SYSTEMCTL} enable --now docker >/dev/null 2>&1; then
-      log_info -q " OK (systemctl)"
-      return 0
-    elif [ ! -z "${SERVICE}" ] && ${SERVICE} docker start >/dev/null 2>&1; then
-      log_info -q " OK (init.d)"
+ensure_docker() {
+  # `docker` executable is required
+  if [ -z "${DOCKER}" ]; then
+    install_docker
+  fi
+
+  # `docker version` needs to succeed
+  if ${DOCKER} version >/dev/null 2>&1; then
+    return 0
+  fi
+
+  # if `docker version` failed -> try to start and enable docker.service
+  if [ ! -z "${SYSTEMCTL}" ] && ${SYSTEMCTL} cat docker.service >/dev/null 2>&1; then
+    log_info -n "Starting Docker service..."
+    if ${SYSTEMCTL} enable --now docker >/dev/null 2>&1 && ${DOCKER} version >/dev/null 2>&1; then
+      log_info -q " OK"
       return 0
     fi
     log_info -q " failed"
-    return 1
   fi
-  return 0
+
+  # if starting service failed, or service is not present -> install
+  install_docker
 }
 
 determine_latest_version() {
@@ -786,12 +806,7 @@ if [ -z "${FLECS_TESTING}" ]; then
   # make sure device is online
   check_connectivity
 
-  # check if Docker is installed,
-  if [ -z "${DOCKER}" ]; then
-    install_docker
-  fi
-  # check if Docker is running and auto start is enabled
-  start_and_enable_docker
+  ensure_docker
   determine_docker_version
   verify_docker_version
   if [ $? -eq ${DOCKER_OUTDATED} ]; then
