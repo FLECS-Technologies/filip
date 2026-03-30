@@ -358,9 +358,6 @@ machine_to_arch() {
     arm64|aarch64)
       ARCH="arm64"
       ;;
-    armhf|armv7l)
-      ARCH="armhf"
-      ;;
     *)
       ARCH="unknown"
       ;;
