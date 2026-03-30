@@ -289,9 +289,13 @@ have() {
   local TOOL=${TOOL//-/_}
   local TOOL=${TOOL//./_}
   if [ -z "${!TOOL}" ]; then
-    declare -g ${TOOL}=`have_program ${1}`
+    declare -g ${TOOL}=$(have_program ${1})
   fi
-  [ ! -z "${!TOOL}" ] && log_debug -q " found" || (log_debug -q " not found" && return 1)
+  if [ -z "${!TOOL}" ]; then
+    log_debug -q " not found"
+    return 1
+  fi
+  log_debug -q " found"
 }
 
 # wrapper for apt-get update
@@ -310,124 +314,21 @@ apt_install() {
   fi
   return 0
 }
-# wrapper for pacman -Syu
-pacman_update() {
-  if [ -z "${PACMAN}" ] || ! ${PACMAN} -Syu --noconfirm 1>${STDOUT} 2>${STDERR}; then
-    return 1
-  fi
-  return 0
-}
-# wrapper for pacman -S
-pacman_install() {
-  if [ -z "${PACMAN}" ] || ! ${PACMAN} -S --needed --noconfirm $@ 1>${STDOUT} 2>${STDERR}; then
-    return 1
-  fi
-  return 0
-}
-# wrapper for yum update
-yum_update() {
-  if [ -z "${YUM}" ] || ! ${YUM} update --assumeno 1>${STDOUT} 2>${STDERR}; then
-    return 1
-  fi
-  return 0
-}
-# wrapper for yum install
-yum_install() {
-  if [ -z "${YUM}" ] || ! ${YUM} install --assumeyes 1>${STDOUT} 2>${STDERR}; then
-    return 1
-  fi
-  return 0
-}
-
-can_install_program() {
-  if [ -z "${OS_LIKE}" ]; then
-    if [ ! -z "${APT_GET}" ] || [ ! -z "${PACMAN}" ] || [ ! -z "${YUM}" ]; then
-      return 0
-    fi
-  else
-    case ${OS_LIKE} in
-      debian|fedora|arch)
-        return 0
-        ;;
-    esac
-  fi
-  return 1
-}
-install_program() {
-  # Before OS detection, we need to guess how to install programs
-  if [ -z "${OS_LIKE}" ]; then
-    if apt_update && apt_install $@; then
-      return 0;
-    elif pacman_update && pacman_install $@; then
-      return 0
-    elif yum_update && yum_install $@; then
-      return 0
-    fi
-  # Afterwards we know how to do it
-  else
-    case ${OS_LIKE} in
-      debian)
-        if apt_update && apt_install $@; then
-          return 0
-        fi
-        ;;
-      fedora)
-        if yum_update && yum_install $@; then
-          return 0
-        fi
-        ;;
-      arch)
-        if yum_update && yum_install $@; then
-          return 0
-        fi
-        ;;
-    esac
-  fi
-  return 1
-}
 
 # detect which tools are available on the system
 detect_tools() {
   log_debug "Checking availability of required tools..."
-  TOOLS=(apt-get chkconfig curl docker grep head ldconfig opkg pacman rpm sed service sort systemctl uname update-rc.d wget yum)
+  TOOLS=(apt-get curl wget docker grep head sed service sort systemctl uname dpkg)
   for TOOL in ${TOOLS[@]}; do
     have ${TOOL}
   done
 }
-verify_tool_alternatives() {
-  TOOL_ALTERNATIVES=("$@")
-  for TOOL in "${TOOL_ALTERNATIVES[@]}"; do
-    REQ=${TOOL^^}
-    REQ=${REQ//-/_}
-    if [ ! -z "${!REQ}" ]; then
-      local FOUND="true"
-      log_debug "Found alternative ${TOOL} for ${TOOL_ALTERNATIVES[@]}"
-    fi
-  done
-  if [ -z "${FOUND}" ]; then
-    return 1
-  fi
-  return 0
-}
 # quit if required tools are missing
 verify_tools() {
-  INSTALL_PACKAGES=""
   log_debug "Verifying presence of required basic tools..."
-  REQUIRED_TOOLS=(head sort)
-  for TOOL in ${REQUIRED_TOOLS[@]}; do
-    REQ=${TOOL^^}
-    REQ=${REQ//-/_}
-    if [ -z "${!REQ}" ]; then
-      INSTALL_PACKAGES="${INSTALL_PACKAGES} ${TOOL}"
-    fi
-  done
-  local ALTERNATIVES=("apt-get;dpkg;ipkg;opkg;rpm" "sed;grep" "curl;wget" "uname;ldconfig")
-  for ALTERNATIVE in "${ALTERNATIVES[@]}"; do
-    IFS=";" read -r -a TOOL_ALTERNATIVE <<< "${ALTERNATIVE}"
-    if ! verify_tool_alternatives "${TOOL_ALTERNATIVE[@]}"; then
-      INSTALL_PACKAGES="${INSTALL_PACKAGES} ${TOOL_ALTERNATIVE[0]}"
-    fi
-  done
+  if [ -z "${CURL}" ] && [ -z "${WGET}" ]; then
+    log_fatal "Neither curl nor wget found. Please install one before running ${ME}"
+  fi
 }
 
 # check internet connection in multiple ways
@@ -898,23 +799,6 @@ if [ -z "${FLECS_TESTING}" ]; then
 
   detect_tools
   verify_tools
-  if [ ! -z "${INSTALL_PACKAGES}" ]; then
-    log_info "${ME} requires the following packages to continue"
-    log_info "    ${INSTALL_PACKAGES}"
-    if ! can_install_program; then
-      log_error "${ME} does not support automatic package installation on your device"
-      log_fatal "Please install missing packages manually before running ${ME}"
-    fi
-    if confirm_yn "Automatically install these packages"; then
-      if ! install_program ${INSTALL_PACKAGES}; then
-        log_fatal "Could not install required dependencies"
-      fi
-    else
-      log_fatal "Cannot continue without required dependencies"
-    fi
-    log_info "Done installing dependencies. Restarting..."
-    exec "${SCRIPTNAME}" --no-banner --no-welcome ${ARGS}
-  fi
   detect_os
   verify_os
 
