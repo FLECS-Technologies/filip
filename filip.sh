@@ -16,16 +16,15 @@
 cat <<'EOF' > /tmp/filip.sh
 #!/bin/bash
 ME="FILiP"
-SCRIPTNAME=`readlink -f ${0}`
-ARGS="$*"
+SCRIPTNAME=$(readlink -f "${0}")
+ARGS=("$@")
 STDOUT=/dev/null
 STDERR=/dev/null
 
-BASE_PROTO=https
-BASE_URL=latest.flecs.tech
+LATEST_URL=https://latest.flecs.tech
 
 print_usage() {
-  echo "Usage: ${SCRIPTNAME}" [options]
+  echo "Usage: ${SCRIPTNAME} [options]"
   echo
   echo "  -v --verbose               print command output (apt, docker, ...)"
   echo "  -d --debug                 print verbose output plus internal debug messages"
@@ -41,7 +40,7 @@ print_usage() {
 
 # some log functions...
 log_debug() {
-  if [ ! -z "${LOG_DEBUG}" ]; then
+  if [ -n "${LOG_DEBUG}" ]; then
     while true; do
       case ${1} in
         -n)
@@ -77,11 +76,7 @@ log_info() {
   echo ${ECHO_ARGS} "$@"
 }
 log_warning() {
-  if [ -z "$@" ]; then
-    echo 1>&2
-  else
-    echo "⚠  $@" 1>&2
-  fi
+  echo "⚠  $@" 1>&2
 }
 log_error() {
   while true; do
@@ -90,27 +85,15 @@ log_error() {
         local ECHO_ARGS="-n"
         shift
         ;;
-      -q)
-        local NO_PREFIX=true
-        shift
-        ;;
       *)
         break;;
     esac
   done
-  if [ -z "${NO_PREFIX}" ]; then
-    echo ${ECHO_ARGS} "❌ $@" 1>&2
-  else
-    echo ${ECHO_ARGS} "$@" 1>&2
-  fi
+  echo ${ECHO_ARGS} "❌ $@" 1>&2
 }
 # log_fatal will terminate with exit code 1 after logging
 log_fatal() {
-  if [ -z "$@" ]; then
-    echo 1>&2
-  else
-    echo "❌ $@" 1>&2
-  fi
+  echo "❌ $@" 1>&2
   exit 1
 }
 # internal_error should *only* be called if guaranteed preconditions are not met
@@ -129,13 +112,14 @@ confirm() {
   if [ -z "${ASSUME_YES}" ]; then
     require_stdin
     read -s -p "$@"
+    echo >&2
   fi
 }
 confirm_yn() {
   if [ -z "${ASSUME_YES}" ]; then
     require_stdin
     while true; do
-      read -p "$*? [y/n]: " input
+      read -p "$@? [y/n]: " input
       case ${input} in
         [yY]*)
           return 0
@@ -158,7 +142,7 @@ cmp_less() {
   if [ "${1}" = "${2}" ]; then
     return 1
   fi
-  local RES=`${SORT} -t . -k 1,1n -k 2,2n -k 3,3n <(echo "${1}") <(echo "${2}") | ${HEAD} -n1`
+  local RES=$(${SORT} -t . -k 1,1n -k 2,2n -k 3,3n <(echo "${1}") <(echo "${2}") | ${HEAD} -n1)
   if [ "${RES}" = "${1}" ]; then
     return 0
   fi
@@ -166,7 +150,7 @@ cmp_less() {
 }
 
 parse_args() {
-  while [ ! -z "${1}" ]; do
+  while [ -n "${1}" ]; do
     case ${1} in
       -v|--verbose)
         STDOUT=/dev/stdout
@@ -248,6 +232,11 @@ parse_args() {
         print_usage
         exit 0
         ;;
+      *)
+        log_error "Unknown option: ${1}"
+        print_usage
+        exit 1
+        ;;
     esac
     shift
   done
@@ -257,10 +246,10 @@ welcome() {
   if [ -z "${NO_WELCOME}" ]; then
     # print welcome message and wait for confirmation, if not unattended
     log_info -n "Installing FLECS on"
-    if [ ! -z "${NAME}" ]; then
+    if [ -n "${NAME}" ]; then
       log_info -n " ${NAME}"
-      [ ! -z "${OS_VERSION}" ] && log_info -n " ${OS_VERSION}"
-      [ ! -z "${CODENAME}" ] && log_info -n " (${CODENAME})"
+      [ -n "${OS_VERSION}" ] && log_info -n " ${OS_VERSION}"
+      [ -n "${CODENAME}" ] && log_info -n " (${CODENAME})"
     else
       log_info -n " your device"
     fi
@@ -269,14 +258,8 @@ welcome() {
   fi
 }
 
-# tries to detect presence of a program by running its "--help" function
-# and using `which` (not available on all platforms) as fallback
 have_program() {
-  if ${1} --help >/dev/null 2>&1; then
-    echo ${1}
-  else
-    which ${1} 2>/dev/null
-  fi
+  command -v "${1}" 2>/dev/null
 }
 # wrapper around have_program that declares a global variable named like the
 # program in uppercase (e.g. CURL=... for curl)
@@ -286,7 +269,7 @@ have() {
   local TOOL=${TOOL//-/_}
   local TOOL=${TOOL//./_}
   if [ -z "${!TOOL}" ]; then
-    declare -g ${TOOL}=$(have_program ${1})
+    declare -g ${TOOL}=$(have_program "${1}")
   fi
   if [ -z "${!TOOL}" ]; then
     log_debug -q " not found"
@@ -301,23 +284,21 @@ apt_update() {
   if [ -z "${APT_GET}" ] || ! ${APT_GET} update 1>${STDOUT} 2>${STDERR}; then
     return 1
   fi
-  return 0
 }
 # wrapper for apt-get install
 apt_install() {
   log_debug "apt-get install $@"
-  if [ -z "${APT_GET}" ] || ! ${APT_GET} -y install --reinstall --no-install-recommends $@ 1>${STDOUT} 2>${STDERR}; then
+  if [ -z "${APT_GET}" ] || ! ${APT_GET} -y install --reinstall --no-install-recommends "$@" 1>${STDOUT} 2>${STDERR}; then
     return 1
   fi
-  return 0
 }
 
 # detect which tools are available on the system
 detect_tools() {
   log_debug "Checking availability of required tools..."
-  TOOLS=(apt-get curl wget docker grep head sed service sort systemctl uname dpkg)
-  for TOOL in ${TOOLS[@]}; do
-    have ${TOOL}
+  TOOLS=(apt-get curl wget docker grep head sed sort systemctl uname dpkg)
+  for TOOL in "${TOOLS[@]}"; do
+    have "${TOOL}"
   done
 }
 # quit if required tools are missing
@@ -326,18 +307,24 @@ verify_tools() {
   if [ -z "${CURL}" ] && [ -z "${WGET}" ]; then
     log_fatal "Neither curl nor wget found. Please install one before running ${ME}"
   fi
+  if [ -z "${SORT}" ]; then
+    log_fatal "sort not found. Please install coreutils before running ${ME}"
+  fi
+  if [ -z "${HEAD}" ]; then
+    log_fatal "head not found. Please install coreutils before running ${ME}"
+  fi
 }
 
 # check internet connection in multiple ways
 check_connectivity() {
   log_info -n "  Internet connectivity..."
-  if [ ! -z "${CURL}" ]; then
-    if ${CURL} http://flecs.tech 1>${STDOUT} 2>${STDERR}; then
+  if [ -n "${CURL}" ]; then
+    if ${CURL} https://flecs.tech 1>${STDOUT} 2>${STDERR}; then
       log_info " ✅"
       return 0
     fi
-  elif [ ! -z "${WGET}" ]; then
-    if ${WGET} -q http://flecs.tech 1>${STDOUT} 2>${STDERR}; then
+  elif [ -n "${WGET}" ]; then
+    if ${WGET} -q https://flecs.tech 1>${STDOUT} 2>${STDERR}; then
       log_info " ✅"
       return 0
     fi
@@ -361,50 +348,54 @@ machine_to_arch() {
 }
 detect_arch() {
   log_debug -n "Detecting system architecture..."
-  if [ ! -z "${DPKG}" ]; then
-    MACHINE=`${DPKG} --print-architecture`
-  elif [ ! -z "${UNAME}" ]; then
-    MACHINE=`${UNAME} -m`
-  elif [ ! -z "${LDCONFIG}" ] && [ ! -z "${GREP}" ]; then
-    MACHINE=`${LDCONFIG} -p | ${GREP} -oP "(?<=\/ld-linux-)[^.]+"`
+  if [ -n "${DPKG}" ]; then
+    MACHINE=$(${DPKG} --print-architecture)
+  elif [ -n "${UNAME}" ]; then
+    MACHINE=$(${UNAME} -m)
+  fi
+  if [ -z "${MACHINE}" ]; then
+    log_debug -q " failed"
+    log_fatal "Could not detect architecture: neither dpkg nor uname available"
   fi
   machine_to_arch
   if [ "${ARCH}" = "unknown" ]; then
     log_debug -q " failed"
-    internal_error "Architecture for ${MACHINE} is unsupported"
+    log_fatal "Unsupported machine type: ${MACHINE}"
   fi
   log_debug -q " ${ARCH}"
 }
 
 parse_os_release() {
-  if [ ! -z "${SED}" ]; then
+  if [ -n "${SED}" ]; then
     ${SED} -nE "s/^${1}=\"?([^\"]+)\"?$/\1/p" /etc/os-release 2>/dev/null
-  elif [ ! -z "${GREP}" ]; then
-    if ! grep -oP "(?<=^${1}=\").+(?=\")" /etc/os-release 2>/dev/null; then
-      grep -oP "(?<=^${1}=).+$" /etc/os-release 2>/dev/null
+  elif [ -n "${GREP}" ]; then
+    if ! ${GREP} -oP "(?<=^${1}=\").+(?=\")" /etc/os-release 2>/dev/null; then
+      ${GREP} -oP "(?<=^${1}=).+$" /etc/os-release 2>/dev/null
     fi
   fi
 }
 detect_os() {
   log_debug "Detecting operating system..."
-  OS=`parse_os_release "ID"`
+  OS=$(parse_os_release "ID")
   log_debug "Detected OS ${OS}"
 
   case ${OS} in
     debian|raspbian|ubuntu)
-      OS_VERSION=`parse_os_release "VERSION_ID"`
-      CODENAME=`parse_os_release "VERSION_CODENAME"`
+      OS_VERSION=$(parse_os_release "VERSION_ID")
+      CODENAME=$(parse_os_release "VERSION_CODENAME")
       OS_LIKE="debian"
       ;;
     fedora|rhel)
-      OS_VERSION=`parse_os_release "VERSION_ID"`
+      OS_VERSION=$(parse_os_release "VERSION_ID")
       OS_LIKE="fedora"
       log_warning "Fedora-based distributions that use podman are not yet supported. Please ensure"
       log_warning "you have Docker installed instead of podman, or follow the instructions found at"
       log_warning "https://docs.docker.com/engine/install/fedora/ to install Docker."
       log_warning "If you cannot use Docker for some reason, please contact us at info@flecs.tech"
       log_warning "for further information about podman support."
-      confirm_yn "Continue"
+      if ! confirm_yn "Continue"; then
+        log_fatal "Installation cancelled"
+      fi
       ;;
     arch)
       OS_LIKE=arch
@@ -413,7 +404,7 @@ detect_os() {
       OS_LIKE=other
       ;;
   esac
-  NAME=`parse_os_release "NAME"`
+  NAME=$(parse_os_release "NAME")
   log_debug "Detected OS_VERSION ${OS_VERSION}"
   log_debug "Detected CODENAME ${CODENAME}"
   log_debug "Detected NAME ${NAME}"
@@ -436,49 +427,41 @@ verify_os_version() {
   fi
 
   for i in "${!VERIFY_VERSIONS[@]}"; do
-    if [[ "${OS_VERSION}" == "${VERIFY_VERSIONS[$i]}" ]]; then
-      local SUPPORTED="true"
-      break
+    if [ "${OS_VERSION}" = "${VERIFY_VERSIONS[$i]}" ]; then
+      return 0
     fi
   done
 
-  if [[ "${SUPPORTED}" != "true" ]]; then
-    if cmp_less "${VERIFY_VERSIONS[-1]}" "${OS_VERSION}"; then
-      local NEWER="true"
+  if cmp_less "${VERIFY_VERSIONS[-1]}" "${OS_VERSION}"; then
+    log_warning "You are running an unsupported version of your OS. Supported versions are"
+    for i in "${!VERIFY_VERSIONS[@]}"; do
+      if [ -n "${VERIFY_CODENAMES[$i]}" ]; then
+        log_warning "    ${VERIFY_VERSIONS[$i]} (${VERIFY_CODENAMES[$i]})"
+      else
+        log_warning "    ${VERIFY_VERSIONS[$i]}"
+      fi
+    done
+    if [ -n "${CODENAME}" ]; then
+      log_warning "Your version ${OS_VERSION} (${CODENAME}) seems more recent, so continuing anyway"
+    else
+      log_warning "Your version ${OS_VERSION} seems more recent, so continuing anyway"
     fi
+    return 0
   fi
 
-  if [[ "${SUPPORTED}" != "true" ]]; then
-    if [[ "${NEWER}" != "true" ]]; then
-      if [ ! -z "${CODENAME}" ]; then
-        log_error "You are running an outdated version ${OS_VERSION} (${CODENAME}) of your OS. Supported versions are"
-      else
-        log_error "You are running an outdated version ${OS_VERSION} of your OS. Supported versions are"
-      fi
-      for i in "${!VERIFY_VERSIONS[@]}"; do
-        if [ ! -z "${VERIFY_CODENAMES[$i]}" ]; then
-          log_error "    ${VERIFY_VERSIONS[$i]} (${VERIFY_CODENAMES[$i]})"
-        else
-          log_error "    ${VERIFY_VERSIONS[$i]}"
-        fi
-      done
-      log_fatal
-    else
-      log_warning "You are running an unsupported version of your OS. Supported versions are"
-      for i in "${!VERIFY_VERSIONS[@]}"; do
-        if [ ! -z "${VERIFY_CODENAMES[$i]}" ]; then
-          log_warning "    ${VERIFY_VERSIONS[$i]} (${VERIFY_CODENAMES[$i]})"
-        else
-          log_warning "    ${VERIFY_VERSIONS[$i]}"
-        fi
-      done
-      if [ ! -z "${CODENAME}" ]; then
-        log_warning "Your version ${OS_VERSION} (${CODENAME}) seems more recent, so continuing anyway"
-      else
-        log_warning "Your version ${OS_VERSION} seems more recent, so continuing anyway"
-      fi
-    fi
+  if [ -n "${CODENAME}" ]; then
+    log_error "You are running an outdated version ${OS_VERSION} (${CODENAME}) of your OS. Supported versions are"
+  else
+    log_error "You are running an outdated version ${OS_VERSION} of your OS. Supported versions are"
   fi
+  for i in "${!VERIFY_VERSIONS[@]}"; do
+    if [ -n "${VERIFY_CODENAMES[$i]}" ]; then
+      log_error "    ${VERIFY_VERSIONS[$i]} (${VERIFY_CODENAMES[$i]})"
+    else
+      log_error "    ${VERIFY_VERSIONS[$i]}"
+    fi
+  done
+  exit 1
 }
 
 verify_os() {
@@ -495,12 +478,12 @@ verify_os() {
       ;;
     fedora)
       VERIFY_VERSIONS=("${FEDORA_VERSIONS[@]}")
-      VERIFY_CODENAMES=
+      VERIFY_CODENAMES=()
       verify_os_version
       ;;
     rhel)
       VERIFY_VERSIONS=("${RHEL_VERSIONS[@]}")
-      VERIFY_CODENAMES=
+      VERIFY_CODENAMES=()
       verify_os_version
       ;;
     arch)
@@ -520,9 +503,9 @@ determine_docker_version() {
     DOCKER_NAME="Docker"
   fi
 
-  if [ ! -z "${SED}" ]; then
+  if [ -n "${SED}" ]; then
     DOCKER_CLIENT_VERSION=$(${DOCKER} -v 2>/dev/null | ${SED} -nE 's/^[^0-9]+([0-9\.]+).*$/\1/p')
-  elif [ ! -z "${GREP}" ]; then
+  elif [ -n "${GREP}" ]; then
     DOCKER_CLIENT_VERSION=$(${DOCKER} -v 2>/dev/null | ${GREP} -oP "([0-9]+[\.]){2}[0-9]+" | ${HEAD} -n1)
   fi
 
@@ -533,23 +516,16 @@ determine_docker_version() {
 
   if [ -z "${DOCKER_CLIENT_VERSION}" ]; then
     log_info " ❌"
-    internal_error "Could not determine Docker version."
+    log_fatal "Could not determine Docker version."
   fi
 
   log_info " ✅ ${DOCKER_CLIENT_VERSION} (API ${DOCKER_API_VERSION})"
-  return 0
 }
 
-# verifies that a supported Docker version is installed and running. Podman is detected as such,
-# and will currently be rejected as support is in development.
-DOCKER_OK=0
-DOCKER_OUTDATED=2
 MIN_DOCKER_API_VERSION="1.41"
 MIN_DOCKER_CLIENT_VERSION="20.10.5"
 verify_docker_version() {
   if [ "${DOCKER_NAME}" = "podman" ]; then
-    MIN_DOCKER_API_VERSION="4.5.0"
-    MIN_DOCKER_CLIENT_VERSION="4.5.0"
     log_error "Podman is currently unsupported."
     log_fatal "Please contact us at info@flecs.tech if you require podman support"
   fi
@@ -557,16 +533,14 @@ verify_docker_version() {
   if cmp_less "${DOCKER_CLIENT_VERSION}" "${MIN_DOCKER_CLIENT_VERSION}"; then
     log_error "FLECS requires at least ${DOCKER_NAME} client version ${MIN_DOCKER_CLIENT_VERSION}"
     log_error "The available client version is ${DOCKER_CLIENT_VERSION}"
-    return ${DOCKER_OUTDATED}
+    log_fatal "Please upgrade your Docker installation before installing FLECS"
   fi
 
-  if cmp_less "${DOCKER_API_VERSION}" "${MIN_DOCKER_API_VERSION}" && [ ! "${DOCKER_API_VERSION}" = "unknown" ]; then
-    log_error "FLECS requires at least ${DOCKER_NAME} API version ${MIN_DOCKER_API_VERSION}."
+  if [ "${DOCKER_API_VERSION}" != "unknown" ] && cmp_less "${DOCKER_API_VERSION}" "${MIN_DOCKER_API_VERSION}"; then
+    log_error "FLECS requires at least ${DOCKER_NAME} API version ${MIN_DOCKER_API_VERSION}"
     log_error "The available API version is ${DOCKER_API_VERSION}"
-    return ${DOCKER_OUTDATED}
+    log_fatal "Please upgrade your Docker installation before installing FLECS"
   fi
-
-  return ${DOCKER_OK}
 }
 
 install_docker_debian() {
@@ -584,7 +558,7 @@ install_docker_debian() {
       ! cmp_less "${OS_VERSION}" "25.04" && PACKAGES="${PACKAGES} docker-cli" ;;
   esac
 
-  if ! apt_install "${PACKAGES}"; then
+  if ! apt_install ${PACKAGES}; then
     log_fatal "apt_install failed in install_docker"
   fi
 }
@@ -597,7 +571,7 @@ install_docker() {
   install_docker_debian
   log_info " ✅"
   log_info "  Restarting installer..."
-  exec "${SCRIPTNAME}" --no-banner --no-welcome ${ARGS}
+  exec "${SCRIPTNAME}" --no-banner --no-welcome "${ARGS[@]}"
 }
 
 ensure_docker() {
@@ -612,7 +586,7 @@ ensure_docker() {
   fi
 
   # if `docker version` failed -> try to start and enable docker.service
-  if [ ! -z "${SYSTEMCTL}" ] && ${SYSTEMCTL} cat docker.service >/dev/null 2>&1; then
+  if [ -n "${SYSTEMCTL}" ] && ${SYSTEMCTL} cat docker.service >/dev/null 2>&1; then
     log_info -n "  Starting Docker service..."
     if ${SYSTEMCTL} enable --now docker >/dev/null 2>&1 && ${DOCKER} version >/dev/null 2>&1; then
       log_info " ✅"
@@ -636,19 +610,16 @@ determine_latest_version() {
   else
     log_debug "Using user provided webapp version: ${VERSION_WEBAPP}"
   fi
-  if [ -z "${VERSION_CORE}" ] || [ -z "${VERSION_WEBAPP}" ]; then
-    log_fatal "Could not determine version of FLECS to install"
-  fi
 }
 
 determine_latest_webapp_version() {
   log_info -n "  FLECS webapp..."
-  if [ ! -z "${CURL}" ]; then
-    VERSION_WEBAPP=$(${CURL} -s ${BASE_PROTO}://${BASE_URL}/webapp)
-  elif [ ! -z "${WGET}" ]; then
-    VERSION_WEBAPP=$(${WGET} -q -O - ${BASE_PROTO}://${BASE_URL}/webapp)
+  if [ -n "${CURL}" ]; then
+    VERSION_WEBAPP=$(${CURL} -s "${LATEST_URL}/webapp")
+  elif [ -n "${WGET}" ]; then
+    VERSION_WEBAPP=$(${WGET} -q -O - "${LATEST_URL}/webapp")
   fi
-  if [ ! -z "${VERSION_WEBAPP}" ]; then
+  if [ -n "${VERSION_WEBAPP}" ]; then
     log_info " ✅ ${VERSION_WEBAPP}"
   else
     log_info " ❌"
@@ -658,12 +629,12 @@ determine_latest_webapp_version() {
 
 determine_latest_core_version() {
   log_info -n "  FLECS core..."
-  if [ ! -z "${CURL}" ]; then
-    VERSION_CORE=$(${CURL} -s ${BASE_PROTO}://${BASE_URL}/core)
-  elif [ ! -z "${WGET}" ]; then
-    VERSION_CORE=$(${WGET} -q -O - ${BASE_PROTO}://${BASE_URL}/core)
+  if [ -n "${CURL}" ]; then
+    VERSION_CORE=$(${CURL} -s "${LATEST_URL}/core")
+  elif [ -n "${WGET}" ]; then
+    VERSION_CORE=$(${WGET} -q -O - "${LATEST_URL}/core")
   fi
-  if [ ! -z "${VERSION_CORE}" ]; then
+  if [ -n "${VERSION_CORE}" ]; then
     log_info " ✅ ${VERSION_CORE}"
   else
     log_info " ❌"
@@ -695,9 +666,8 @@ start_flecs() {
     FILIP_TAG="dev"
   fi
   log_info -n "  Starting FLECS..."
-  ${DOCKER} container rm -f flecs >/dev/null 2>&1
-  ${DOCKER} container run --detach --name flecs ${ENV} --network host --restart always --volume /var/run/docker.sock:/var/run/docker.sock flecspublic.azurecr.io/flecs/filip:${FILIP_TAG} >/dev/null
-  if [ $? -ne 0 ]; then
+  ${DOCKER} container rm -f flecs >/dev/null 2>&1 || true
+  if ! ${DOCKER} container run --detach --name flecs ${ENV} --network host --restart always --volume /var/run/docker.sock:/var/run/docker.sock flecspublic.azurecr.io/flecs/filip:${FILIP_TAG} >/dev/null 2>&1; then
     log_info " ❌"
     log_fatal "Failed to start FLECS"
   fi
@@ -707,7 +677,7 @@ start_flecs() {
 apt_remove() {
   if ${DPKG} -l "${1}" 2>/dev/null | ${GREP} -q "^ii"; then
     log_debug "Removing ${1}..."
-    if ${APT_GET} remove -y ${1} >/dev/null 2>&1; then
+    if ${APT_GET} purge -y "${1}" >/dev/null 2>&1; then
       log_debug " OK"
     else
       log_fatal "Failed to remove ${1}"
@@ -725,7 +695,7 @@ remove_old_flecs() {
 }
 
 if [ -z "${FLECS_TESTING}" ]; then
-  parse_args $*
+  parse_args "$@"
   banner
 
   # ensure running as root
@@ -735,7 +705,7 @@ if [ -z "${FLECS_TESTING}" ]; then
       log_fatal "Please login as root user and restart installation"
     else
       if confirm_yn "Restart using sudo"; then
-        exec ${SUDO} "${SCRIPTNAME}" --no-banner ${ARGS}
+        exec ${SUDO} "${SCRIPTNAME}" --no-banner "${ARGS[@]}"
       else
         log_fatal "Cannot continue installation without root privileges"
       fi
@@ -750,27 +720,26 @@ if [ -z "${FLECS_TESTING}" ]; then
   welcome
 
   # print warning for unsupported systems and wait for confirmation, if not unattended
-  if [ "${EXPERIMENTAL}" == "true" ]; then
+  if [ "${EXPERIMENTAL}" = "true" ]; then
     log_warning "Your operating system is not officially supported by the installer."
-    if [ ! -z "${OS}" ]; then
-      if [ ! -z "${NAME}" ]; then
+    if [ -n "${OS}" ]; then
+      if [ -n "${NAME}" ]; then
         log_warning "    Name: ${NAME} (${OS})"
       else
         log_warning "    OS: ${OS}"
       fi
     else
-      if [ ! -z "${NAME}" ]; then
+      if [ -n "${NAME}" ]; then
         log_warning "    Name: ${NAME}"
       fi
     fi
-    [ ! -z "${OS_VERSION}" ] && log_warning "    Version: ${OS_VERSION}" || log_warning "    Version: unknown"
-    log_warning
+    [ -n "${OS_VERSION}" ] && log_warning "    Version: ${OS_VERSION}" || log_warning "    Version: unknown"
+    echo >&2
 
     log_warning "Installation might still succeed, depending on your exact system configuration."
     log_warning "No changes will be made to your system on failure, so it is usually safe to"
     log_warning "attempt installation anyway."
-    confirm "Press enter to continue installation, or Ctrl-C to cancel."
-    log_warning
+    confirm "Press ↵ to install or Ctrl-C to cancel."
   fi
 
   echo
@@ -781,25 +750,17 @@ if [ -z "${FLECS_TESTING}" ]; then
   ensure_docker
   determine_docker_version
   verify_docker_version
-  if [ $? -eq ${DOCKER_OUTDATED} ]; then
-    log_error "FLECS requires at least Docker version ${MIN_DOCKER_CLIENT_VERSION} (${DOCKER_CLIENT_VERSION} available)"
-    log_fatal "Please upgrade your Docker installation before installing FLECS"
-  fi
 
   # query latest FLECS version online
-  if ! determine_latest_version; then
-    log_fatal "Could not determine latest version of FLECS"
-  fi
+  determine_latest_version
 
-  if ! remove_old_flecs; then
-    log_fatal "Could not remove old version of FLECS, please remove it manually"
-  fi
+  remove_old_flecs
 
   start_flecs
 fi
 EOF
 
-SCRIPTNAME=`readlink -f "${0}"`
+SCRIPTNAME=$(readlink -f "${0}")
 if [ "${SCRIPTNAME}" != "/tmp/filip.sh" ]; then
   chmod +x /tmp/filip.sh
   if (exec >/dev/null 2>&1 3</dev/tty); then
