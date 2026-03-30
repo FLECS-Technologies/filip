@@ -27,7 +27,8 @@ BASE_URL=latest.flecs.tech
 print_usage() {
   echo "Usage: ${SCRIPTNAME}" [options]
   echo
-  echo "  -d --debug                 print additional debug messages"
+  echo "  -v --verbose               print command output (apt, docker, ...)"
+  echo "  -d --debug                 print verbose output plus internal debug messages"
   echo "  -y --yes                   assume yes as answer to all prompts (unattended mode)"
   echo "     --no-banner             do not print ${ME} banner"
   echo "     --no-welcome            do not print welcome message"
@@ -69,25 +70,17 @@ log_info() {
         local ECHO_ARGS="-n"
         shift
         ;;
-      -q)
-        local NO_PREFIX=true
-        shift
-        ;;
       *)
         break;;
     esac
   done
-  if [ -z "${NO_PREFIX}" ]; then
-    echo ${ECHO_ARGS} "Info: $@"
-  else
-    echo ${ECHO_ARGS} "$@"
-  fi
+  echo ${ECHO_ARGS} "$@"
 }
 log_warning() {
   if [ -z "$@" ]; then
     echo 1>&2
   else
-    echo "Warning: $@" 1>&2
+    echo "⚠  $@" 1>&2
   fi
 }
 log_error() {
@@ -106,7 +99,7 @@ log_error() {
     esac
   done
   if [ -z "${NO_PREFIX}" ]; then
-    echo ${ECHO_ARGS} "Error: $@" 1>&2
+    echo ${ECHO_ARGS} "❌ $@" 1>&2
   else
     echo ${ECHO_ARGS} "$@" 1>&2
   fi
@@ -116,7 +109,7 @@ log_fatal() {
   if [ -z "$@" ]; then
     echo 1>&2
   else
-    echo "Fatal: $@. ${ME} out." 1>&2
+    echo "❌ $@" 1>&2
   fi
   exit 1
 }
@@ -175,6 +168,10 @@ cmp_less() {
 parse_args() {
   while [ ! -z "${1}" ]; do
     case ${1} in
+      -v|--verbose)
+        STDOUT=/dev/stdout
+        STDERR=/dev/stderr
+        ;;
       -d|--debug)
         LOG_DEBUG=1
         STDOUT=/dev/stdout
@@ -261,12 +258,12 @@ welcome() {
     # print welcome message and wait for confirmation, if not unattended
     log_info -n "${ME} is about to install FLECS for ${ARCH} on"
     if [ ! -z "${NAME}" ]; then
-      log_info -n -q " ${NAME}"
-      [ ! -z "${OS_VERSION}" ] && log_info -n -q " ${OS_VERSION}"
-      [ ! -z "${CODENAME}" ] && log_info -n -q " (${CODENAME})"
-      log_info -q
+      log_info -n " ${NAME}"
+      [ ! -z "${OS_VERSION}" ] && log_info -n " ${OS_VERSION}"
+      [ ! -z "${CODENAME}" ] && log_info -n " (${CODENAME})"
+      log_info
     else
-      log_info -q " your device"
+      log_info " your device"
     fi
     confirm "Press enter to begin installation or Ctrl-C to cancel."
   fi
@@ -333,21 +330,20 @@ verify_tools() {
 
 # check internet connection in multiple ways
 check_connectivity() {
-  log_info -n "Checking internet connectivity..."
+  log_info -n "  Internet connectivity..."
   if [ ! -z "${CURL}" ]; then
     if ${CURL} http://flecs.tech 1>${STDOUT} 2>${STDERR}; then
-      echo "OK"
+      log_info " ✅"
       return 0
     fi
- elif [ ! -z "${WGET}" ]; then
+  elif [ ! -z "${WGET}" ]; then
     if ${WGET} -q http://flecs.tech 1>${STDOUT} 2>${STDERR}; then
-      echo "OK"
+      log_info " ✅"
       return 0
     fi
   fi
-  log_info -q "failed"
+  log_info " ❌"
   log_fatal "Please make sure your device is online before running ${ME}"
-  return 1;
 }
 
 machine_to_arch() {
@@ -516,11 +512,7 @@ verify_os() {
 }
 
 determine_docker_version() {
-  log_info -n "Determining Docker version..."
-  if [ -z "${DOCKER}" ]; then
-    log_info -q " none"
-    log_fatal "Docker is not installed on your device"
-  fi
+  log_info -n "  Docker..."
 
   if ${DOCKER} -v 2>/dev/null | ${GREP} podman >/dev/null 2>&1; then
     DOCKER_NAME="podman"
@@ -528,35 +520,23 @@ determine_docker_version() {
     DOCKER_NAME="Docker"
   fi
 
-  TIMEOUT=5
-  while ! ${DOCKER} version >/dev/null 2>&1 && [ ${TIMEOUT} -ge 1 ]; do
-    sleep 1
-    TIMEOUT=$((TIMEOUT-1))
-  done
   if [ ! -z "${SED}" ]; then
     DOCKER_CLIENT_VERSION=$(${DOCKER} -v 2>/dev/null | ${SED} -nE 's/^[^0-9]+([0-9\.]+).*$/\1/p')
   elif [ ! -z "${GREP}" ]; then
     DOCKER_CLIENT_VERSION=$(${DOCKER} -v 2>/dev/null | ${GREP} -oP "([0-9]+[\.]){2}[0-9]+" | ${HEAD} -n1)
   fi
 
-  log_info -q " ${DOCKER_NAME} found"
-
   DOCKER_API_VERSION="unknown"
-  if ! ${DOCKER} version >/dev/null 2>&1; then
-    log_warning "Could not determine Docker API version. Maybe you need to start it using"
-    log_warning "    'systemctl enable --now docker.service' or"
-    log_warning "    '/etc/init.d/docker start'"
-  else
+  if ${DOCKER} version >/dev/null 2>&1; then
     DOCKER_API_VERSION=$(${DOCKER} version --format '{{.Server.APIVersion}}' 2>/dev/null)
   fi
 
-  if [ -z "${DOCKER_API_VERSION}" ] || [ -z "${DOCKER_CLIENT_VERSION}" ]; then
+  if [ -z "${DOCKER_CLIENT_VERSION}" ]; then
+    log_info " ❌"
     internal_error "Could not determine Docker version."
-    return 1
   fi
-  log_info "    Client: ${DOCKER_CLIENT_VERSION}"
-  log_info "    API: ${DOCKER_API_VERSION}"
 
+  log_info " ✅ ${DOCKER_CLIENT_VERSION} (API ${DOCKER_API_VERSION})"
   return 0
 }
 
@@ -590,7 +570,6 @@ verify_docker_version() {
 }
 
 install_docker_debian() {
-  log_info "Installing docker.io via apt..."
   if ! apt_update; then
     log_fatal "apt_update failed in install_docker"
   fi
@@ -614,8 +593,10 @@ install_docker() {
   if [ "${OS_LIKE}" != "debian" ]; then
     log_fatal "Automatic Docker installation is only supported on Debian/Ubuntu-based systems"
   fi
+  log_info -n "  Installing Docker..."
   install_docker_debian
-  log_info "Done installing Docker. Restarting..."
+  log_info " ✅"
+  log_info "  Restarting installer..."
   exec "${SCRIPTNAME}" --no-banner --no-welcome ${ARGS}
 }
 
@@ -632,12 +613,12 @@ ensure_docker() {
 
   # if `docker version` failed -> try to start and enable docker.service
   if [ ! -z "${SYSTEMCTL}" ] && ${SYSTEMCTL} cat docker.service >/dev/null 2>&1; then
-    log_info -n "Starting Docker service..."
+    log_info -n "  Starting Docker service..."
     if ${SYSTEMCTL} enable --now docker >/dev/null 2>&1 && ${DOCKER} version >/dev/null 2>&1; then
-      log_info -q " OK"
+      log_info " ✅"
       return 0
     fi
-    log_info -q " failed"
+    log_info " ❌"
   fi
 
   # if starting service failed, or service is not present -> install
@@ -655,44 +636,37 @@ determine_latest_version() {
   else
     log_debug "Using user provided webapp version: ${VERSION_WEBAPP}"
   fi
-  if [ ! -z "${VERSION_CORE}" ] && [ ! -z "${VERSION_WEBAPP}" ]; then
-    log_info "    Core: ${VERSION_CORE}"
-    log_info "    WebApp: ${VERSION_WEBAPP}"
-  else
+  if [ -z "${VERSION_CORE}" ] || [ -z "${VERSION_WEBAPP}" ]; then
     log_fatal "Could not determine version of FLECS to install"
   fi
 }
 
 determine_latest_webapp_version() {
-  log_info -n "Determining latest FLECS webapp version..."
-  # try through curl first, if available
+  log_info -n "  FLECS webapp..."
   if [ ! -z "${CURL}" ]; then
-    VERSION_WEBAPP=`${CURL} -s ${BASE_PROTO}://${BASE_URL}/webapp`
-  # use wget as fallback, if available
+    VERSION_WEBAPP=$(${CURL} -s ${BASE_PROTO}://${BASE_URL}/webapp)
   elif [ ! -z "${WGET}" ]; then
-    VERSION_WEBAPP=`${WGET} -q -O - ${BASE_PROTO}://${BASE_URL}/webapp`
+    VERSION_WEBAPP=$(${WGET} -q -O - ${BASE_PROTO}://${BASE_URL}/webapp)
   fi
   if [ ! -z "${VERSION_WEBAPP}" ]; then
-    echo " OK"
+    log_info " ✅ ${VERSION_WEBAPP}"
   else
-    echo " failed"
+    log_info " ❌"
     log_fatal "Could not determine version of FLECS webapp to install"
   fi
 }
 
 determine_latest_core_version() {
-  log_info -n "Determining latest FLECS core version..."
-  # try through curl first, if available
+  log_info -n "  FLECS core..."
   if [ ! -z "${CURL}" ]; then
-    VERSION_CORE=`${CURL} -s ${BASE_PROTO}://${BASE_URL}/core`
-  # use wget as fallback, if available
+    VERSION_CORE=$(${CURL} -s ${BASE_PROTO}://${BASE_URL}/core)
   elif [ ! -z "${WGET}" ]; then
-    VERSION_CORE=`${WGET} -q -O - ${BASE_PROTO}://${BASE_URL}/core`
+    VERSION_CORE=$(${WGET} -q -O - ${BASE_PROTO}://${BASE_URL}/core)
   fi
   if [ ! -z "${VERSION_CORE}" ]; then
-    echo " OK"
+    log_info " ✅ ${VERSION_CORE}"
   else
-    echo " failed"
+    log_info " ❌"
     log_fatal "Could not determine version of FLECS core to install"
   fi
 }
@@ -720,11 +694,14 @@ start_flecs() {
   elif [ "$DEV_MODE" = "1" ]; then
     FILIP_TAG="dev"
   fi
+  log_info -n "  Starting FLECS..."
   docker container rm -f flecs >/dev/null 2>&1
   docker container run --detach --name flecs ${ENV} --network host --restart always --volume /var/run/docker.sock:/var/run/docker.sock flecspublic.azurecr.io/flecs/filip:${FILIP_TAG} >/dev/null
   if [ $? -ne 0 ]; then
-    log_fatal "Failed to start flecs"
+    log_info " ❌"
+    log_fatal "Failed to start FLECS"
   fi
+  log_info " ✅"
 }
 
 apt_remove() {
@@ -824,7 +801,6 @@ if [ -z "${FLECS_TESTING}" ]; then
   fi
 
   start_flecs
-  log_info "FLECS was successfully started!"
 fi
 EOF
 
