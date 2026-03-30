@@ -256,16 +256,16 @@ parse_args() {
 welcome() {
   if [ -z "${NO_WELCOME}" ]; then
     # print welcome message and wait for confirmation, if not unattended
-    log_info -n "${ME} is about to install FLECS for ${ARCH} on"
+    log_info -n "Installing FLECS on"
     if [ ! -z "${NAME}" ]; then
       log_info -n " ${NAME}"
       [ ! -z "${OS_VERSION}" ] && log_info -n " ${OS_VERSION}"
       [ ! -z "${CODENAME}" ] && log_info -n " (${CODENAME})"
-      log_info
     else
-      log_info " your device"
+      log_info -n " your device"
     fi
-    confirm "Press enter to begin installation or Ctrl-C to cancel."
+    log_info " [${ARCH}]"
+    confirm "Press ↵ to install or Ctrl-C to cancel."
   fi
 }
 
@@ -808,10 +808,8 @@ SCRIPTNAME=`readlink -f "${0}"`
 if [ "${SCRIPTNAME}" != "/tmp/filip.sh" ]; then
   chmod +x /tmp/filip.sh
   if (exec >/dev/null 2>&1 3</dev/tty); then
-    echo "Executing /tmp/filip.sh with stdin attached"
     exec /tmp/filip.sh "$@" </dev/tty
   else
-    echo "Executing /tmp/filip.sh without stdin attached"
     exec /tmp/filip.sh "$@" 0<&-
   fi
 fi
