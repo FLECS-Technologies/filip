@@ -673,14 +673,14 @@ determine_latest_core_version() {
 
 banner() {
   if [ -z "${NO_BANNER}" ]; then
-    echo "                      ▒▒▒▒▒▒▒▒  ▒▒  ▒▒        ▒▒  ▒▒▒▒▒▒▒                       "
-    echo "                      ▒▒        ▒▒  ▒▒            ▒▒    ▒▒                      "
-    echo "                      ▒▒▒▒▒▒    ▒▒  ▒▒        ▒▒  ▒▒▒▒▒▒▒                       "
-    echo "                      ▒▒        ▒▒  ▒▒        ▒▒  ▒▒                            "
-    echo "                      ▒▒        ▒▒  ▒▒▒▒▒▒▒▒  ▒▒  ▒▒                            "
-    echo "                      FLECS Installer for Linux Platforms                       "
+    echo "  ▒▒▒▒▒▒▒▒  ▒▒  ▒▒        ▒▒  ▒▒▒▒▒▒▒ "
+    echo "  ▒▒        ▒▒  ▒▒            ▒▒    ▒▒"
+    echo "  ▒▒▒▒▒▒    ▒▒  ▒▒        ▒▒  ▒▒▒▒▒▒▒ "
+    echo "  ▒▒        ▒▒  ▒▒        ▒▒  ▒▒      "
+    echo "  ▒▒        ▒▒  ▒▒▒▒▒▒▒▒  ▒▒  ▒▒      "
+    echo "  FLECS Installer for Linux Platforms "
     echo
-    echo "                              https://flecs.tech/                               "
+    echo "          https://flecs.tech/         "
     echo
   fi
 }
