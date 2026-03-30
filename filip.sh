@@ -115,8 +115,8 @@ log_fatal() {
 }
 # internal_error should *only* be called if guaranteed preconditions are not met
 internal_error() {
-  log_error "Internal error: $@" 1>&2
-  exit -1
+  log_error "Internal error: $@"
+  exit 1
 }
 
 # print a message and wait for user input. does nothing in unattended mode
@@ -194,55 +194,55 @@ parse_args() {
         VERSION_CORE=${2}
         if [ -z "${VERSION_CORE}" ]; then
           log_error "argument --core-version requires a value"
-          log_error -q
           print_usage
           exit 1
         fi
+        shift
         ;;
       --webapp-version)
         VERSION_WEBAPP=${2}
         if [ -z "${VERSION_WEBAPP}" ]; then
           log_error "argument --webapp-version requires a value"
-          log_error -q
           print_usage
           exit 1
         fi
+        shift
         ;;
       --filip-version)
         VERSION_FILIP=${2}
         if [ -z "${VERSION_FILIP}" ]; then
           log_error "argument --filip-version requires a value"
-          log_error -q
           print_usage
           exit 1
         fi
+        shift
         ;;
       --whitelabel)
         WHITELABEL=${2}
         if [ -z "${WHITELABEL}" ]; then
           log_error "argument --whitelabel requires a value"
-          log_error -q
           print_usage
           exit 1
         fi
+        shift
         ;;
       --http-port)
         HTTP_PORT=${2}
         if [ -z "${HTTP_PORT}" ]; then
           log_error "argument --http-port requires a value"
-          log_error -q
           print_usage
           exit 1
         fi
+        shift
         ;;
       --https-port)
         HTTPS_PORT=${2}
         if [ -z "${HTTPS_PORT}" ]; then
           log_error "argument --https-port requires a value"
-          log_error -q
           print_usage
           exit 1
         fi
+        shift
         ;;
       --help)
         print_usage
@@ -695,8 +695,8 @@ start_flecs() {
     FILIP_TAG="dev"
   fi
   log_info -n "  Starting FLECS..."
-  docker container rm -f flecs >/dev/null 2>&1
-  docker container run --detach --name flecs ${ENV} --network host --restart always --volume /var/run/docker.sock:/var/run/docker.sock flecspublic.azurecr.io/flecs/filip:${FILIP_TAG} >/dev/null
+  ${DOCKER} container rm -f flecs >/dev/null 2>&1
+  ${DOCKER} container run --detach --name flecs ${ENV} --network host --restart always --volume /var/run/docker.sock:/var/run/docker.sock flecspublic.azurecr.io/flecs/filip:${FILIP_TAG} >/dev/null
   if [ $? -ne 0 ]; then
     log_info " ❌"
     log_fatal "Failed to start FLECS"
@@ -705,14 +705,9 @@ start_flecs() {
 }
 
 apt_remove() {
-  local out
-
-  out="$(apt list --installed ${1} 2>/dev/null)"
-  if [ $? -ne 0 ]; then
-    log_fatal "Failed to check if ${1} is installed"
-  elif grep -q "${1}/" <<<"$out"; then
+  if ${DPKG} -l "${1}" 2>/dev/null | ${GREP} -q "^ii"; then
     log_debug "Removing ${1}..."
-    if apt remove -y ${1} >/dev/null 2>&1; then
+    if ${APT_GET} remove -y ${1} >/dev/null 2>&1; then
       log_debug " OK"
     else
       log_fatal "Failed to remove ${1}"
@@ -721,7 +716,7 @@ apt_remove() {
 }
 
 remove_old_flecs() {
-  if ! have apt; then
+  if [ -z "${APT_GET}" ]; then
     return 0
   fi
 
