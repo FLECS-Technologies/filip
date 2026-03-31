@@ -667,6 +667,8 @@ start_flecs() {
   elif [ "$DEV_MODE" = "1" ]; then
     FILIP_TAG="dev"
   fi
+  log_info -n "  Pulling latest image..."
+  ${DOCKER} image pull ${FILIP_IMAGE}:${FILIP_TAG} 1>${STDOUT} 2>${STDERR} && log_info " ✅" || log_info " ⚠"
   log_info -n "  Starting FLECS..."
   ${DOCKER} container rm -f flecs >/dev/null 2>&1 || true
   if ! ${DOCKER} container run --detach --name flecs ${ENV} --network host --restart always --volume /var/run/docker.sock:/var/run/docker.sock ${FILIP_IMAGE}:${FILIP_TAG} 1>${STDOUT} 2>${STDERR}; then
