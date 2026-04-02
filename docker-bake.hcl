@@ -49,11 +49,11 @@ target "all" {
   target = build_type.type
   tags = flatten([
     notequal("", CHANNEL)
-      ? ["flecspublic.azurecr.io/flecs/filip:${build_type.channel_tag}"]
+      ? ["cr.flecs.tech/flecs/filip:${build_type.channel_tag}"]
       : [],
     [
     for V in VERSIONS :
-      "flecspublic.azurecr.io/flecs/filip:${V}${build_type.version_suffix}"
+      "cr.flecs.tech/flecs/filip:${V}${build_type.version_suffix}"
     ]
   ])
 }

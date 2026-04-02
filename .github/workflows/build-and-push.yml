@@ -44,7 +44,7 @@ jobs:
         # v3.7.0
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
-          registry: flecspublic.azurecr.io
+          registry: cr.flecs.tech
           username: ${{ secrets.REGISTRY_USER }}
           password: ${{ secrets.REGISTRY_AUTH }}
 

@@ -10,13 +10,13 @@ use std::collections::HashMap;
 use std::net::Ipv4Addr;
 
 pub type ContainerConfig = (CreateContainerOptions, ContainerCreateBody);
-const CONTAINER_REGISTRY: &str = "flecspublic.azurecr.io";
-const CORE_IMAGE: &str = "flecs-slim";
+const CONTAINER_REGISTRY: &str = "cr.flecs.tech";
+const CORE_IMAGE: &str = "flecs/flecs-core";
 const CORE_VERSION: &str = "latest";
 const CORE_VERSION_ENV: &str = "VERSION_CORE";
 const FLOXY_IMAGE: &str = "flecs/floxy";
 const FLOXY_VERSION: &str = "0";
-const WEBAPP_IMAGE: &str = "webapp";
+const WEBAPP_IMAGE: &str = "flecs/webapp";
 const WEBAPP_VERSION: &str = "latest";
 const WEBAPP_VERSION_ENV: &str = "VERSION_WEBAPP";
 const WHITELABEL_ENV: &str = "WHITELABEL";

@@ -667,7 +667,7 @@ start_flecs() {
   fi
   log_info -n "  Starting FLECS..."
   ${DOCKER} container rm -f flecs >/dev/null 2>&1 || true
-  if ! ${DOCKER} container run --detach --name flecs ${ENV} --network host --restart always --volume /var/run/docker.sock:/var/run/docker.sock flecspublic.azurecr.io/flecs/filip:${FILIP_TAG} >/dev/null 2>&1; then
+  if ! ${DOCKER} container run --detach --name flecs ${ENV} --network host --restart always --volume /var/run/docker.sock:/var/run/docker.sock cr.flecs.tech/flecs/filip:${FILIP_TAG} >/dev/null 2>&1; then
     log_info " ❌"
     log_fatal "Failed to start FLECS"
   fi
