@@ -18,6 +18,9 @@ cat <<'EOF' > /tmp/filip.sh
 ME="FILiP"
 SCRIPTNAME=$(readlink -f "${0}")
 ARGS=("$@")
+CORE_ENV_ARGS=()
+FLOXY_ENV_ARGS=()
+WEBAPP_ENV_ARGS=()
 STDOUT=/dev/null
 STDERR=/dev/null
 
@@ -37,6 +40,9 @@ print_usage() {
   echo "     --webapp-version <ver>  Install version <ver> of flecs-webapp instead of the latest version"
   echo "     --http-port <port>      use <port> for accessing the reverse proxy via http"
   echo "     --https-port <port>     use <port> for accessing the reverse proxy via https"
+  echo "     --core-env <KEY=VAL>    pass an extra environment variable to the core container (repeatable)"
+  echo "     --floxy-env <KEY=VAL>   pass an extra environment variable to the floxy container (repeatable)"
+  echo "     --webapp-env <KEY=VAL>  pass an extra environment variable to the webapp container (repeatable)"
   echo "     --help                  print this help and exit"
 }
 
@@ -228,6 +234,33 @@ parse_args() {
           print_usage
           exit 1
         fi
+        shift
+        ;;
+      --core-env)
+        if [ -z "${2}" ]; then
+          log_error "argument --core-env requires a value"
+          print_usage
+          exit 1
+        fi
+        CORE_ENV_ARGS+=("${2}")
+        shift
+        ;;
+      --floxy-env)
+        if [ -z "${2}" ]; then
+          log_error "argument --floxy-env requires a value"
+          print_usage
+          exit 1
+        fi
+        FLOXY_ENV_ARGS+=("${2}")
+        shift
+        ;;
+      --webapp-env)
+        if [ -z "${2}" ]; then
+          log_error "argument --webapp-env requires a value"
+          print_usage
+          exit 1
+        fi
+        WEBAPP_ENV_ARGS+=("${2}")
         shift
         ;;
       --help)
@@ -658,9 +691,29 @@ banner() {
   fi
 }
 
+build_env_pairs() {
+  # Joins KEY=VALUE pairs into a single space-separated string for passing as
+  # one environment variable. Values may contain any characters via backslash
+  # escaping: '\' is encoded as '\\' and ' ' as '\ '. The recipient splits on
+  # unescaped spaces and decodes each pair.
+  PAIRS=""
+  for ARG in "$@"; do
+    ESCAPED="${ARG//\\/\\\\}"
+    ESCAPED="${ESCAPED// /\\ }"
+    PAIRS="${PAIRS:+${PAIRS} }${ESCAPED}"
+  done
+  printf '%s' "${PAIRS}"
+}
+
 start_flecs() {
-  local ENV="-e VERSION_CORE=${VERSION_CORE} -e VERSION_WEBAPP=${VERSION_WEBAPP}${WHITELABEL:+ -e WHITELABEL=${WHITELABEL}}"
-  ENV+="${HTTP_PORT:+ -e FLOXY_HTTP_PORT=${HTTP_PORT}}${HTTPS_PORT:+ -e FLOXY_HTTPS_PORT=${HTTPS_PORT}}"
+  local ENV_ARGS=(-e "VERSION_CORE=${VERSION_CORE}" -e "VERSION_WEBAPP=${VERSION_WEBAPP}")
+  [ -n "${WHITELABEL}" ] && ENV_ARGS+=(-e "WHITELABEL=${WHITELABEL}")
+  [ -n "${HTTP_PORT}" ] && ENV_ARGS+=(-e "FLOXY_HTTP_PORT=${HTTP_PORT}")
+  [ -n "${HTTPS_PORT}" ] && ENV_ARGS+=(-e "FLOXY_HTTPS_PORT=${HTTPS_PORT}")
+  local PAIRS
+  PAIRS=$(build_env_pairs "${CORE_ENV_ARGS[@]}") && [ -n "${PAIRS}" ] && ENV_ARGS+=(-e "FILIP_CORE_ENV=${PAIRS}")
+  PAIRS=$(build_env_pairs "${FLOXY_ENV_ARGS[@]}") && [ -n "${PAIRS}" ] && ENV_ARGS+=(-e "FILIP_FLOXY_ENV=${PAIRS}")
+  PAIRS=$(build_env_pairs "${WEBAPP_ENV_ARGS[@]}") && [ -n "${PAIRS}" ] && ENV_ARGS+=(-e "FILIP_WEBAPP_ENV=${PAIRS}")
   local FILIP_TAG="latest"
   if [ -n "$VERSION_FILIP" ]; then
     FILIP_TAG="$VERSION_FILIP"
@@ -671,7 +724,7 @@ start_flecs() {
   ${DOCKER} image pull ${FILIP_IMAGE}:${FILIP_TAG} 1>${STDOUT} 2>${STDERR} && log_info " ✅" || log_info " ⚠"
   log_info -n "  Starting FLECS..."
   ${DOCKER} container rm -f flecs >/dev/null 2>&1 || true
-  if ! ${DOCKER} container run --detach --name flecs ${ENV} --network host --restart always --volume /var/run/docker.sock:/var/run/docker.sock ${FILIP_IMAGE}:${FILIP_TAG} 1>${STDOUT} 2>${STDERR}; then
+  if ! ${DOCKER} container run --detach --name flecs "${ENV_ARGS[@]}" --network host --restart always --volume /var/run/docker.sock:/var/run/docker.sock ${FILIP_IMAGE}:${FILIP_TAG} 1>${STDOUT} 2>${STDERR}; then
     log_info " ❌"
     log_fatal "Failed to start FLECS"
   fi
