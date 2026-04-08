@@ -724,7 +724,7 @@ start_flecs() {
   ${DOCKER} image pull ${FILIP_IMAGE}:${FILIP_TAG} 1>${STDOUT} 2>${STDERR} && log_info " ✅" || log_info " ⚠"
   log_info -n "  Starting FLECS..."
   ${DOCKER} container rm -f flecs >/dev/null 2>&1 || true
-  if ! ${DOCKER} container run --detach --name flecs "${ENV_ARGS[@]}" --network host --restart always --volume /var/run/docker.sock:/var/run/docker.sock ${FILIP_IMAGE}:${FILIP_TAG} 1>${STDOUT} 2>${STDERR}; then
+  if ! ${DOCKER} container run --detach --name flecs "${ENV_ARGS[@]}" --network host --restart always --volume /run/docker.sock:/run/docker.sock ${FILIP_IMAGE}:${FILIP_TAG} 1>${STDOUT} 2>${STDERR}; then
     log_info " ❌"
     log_fatal "Failed to start FLECS"
   fi
