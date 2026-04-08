@@ -26,6 +26,8 @@ FROM alpine:3 AS staging-release
 
 # rootfs
 COPY --from=gcr.io/distroless/static-debian13 / /staging/
+RUN rm -rf /staging/var/run
+RUN ln -s /run /staging/var/run
 
 # executables
 COPY --from=entrypoint /entrypoint /staging/entrypoint
@@ -35,6 +37,8 @@ FROM alpine:3 AS staging-debug
 
 # rootfs
 COPY --from=gcr.io/distroless/static-debian13:debug / /staging/
+RUN rm -rf /staging/var/run
+RUN ln -s /run /staging/var/run
 
 # executables
 COPY --from=entrypoint /entrypoint /staging/entrypoint
