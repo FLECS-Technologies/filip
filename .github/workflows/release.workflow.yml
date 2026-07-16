@@ -71,7 +71,7 @@ jobs:
       - name: Commit version bump ${{ github.event.release.prerelease && '(dry-run)' || '' }})
         run: |
           git config user.name "forgejo-actions[bot]"
-          git config user.email "forgejo-actions[bot]@users.noreply.codeberg.org"
+          git config user.email "forgejo-actions[bot]@users.noreply.git.flecs.tech"
           git add -- ./entrypoint/Cargo.{lock,toml}
           git commit -m "Auto-bump version after release"
 
@@ -94,5 +94,5 @@ jobs:
           assets: |
             filip.sh
           create_sha256: "true"
-          token: ${{ secrets.GH_REPO_WRITE }}
+          token: ${{ secrets.GIT_REPO_WRITE }}
           tag: ${{ forgejo.ref_name }}

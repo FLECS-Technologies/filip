@@ -17,5 +17,5 @@ bollard = "0.20.0"
 futures-util = "0.3.31"
 thiserror = "2.0.18"
 tokio = { version = "1.49.0", features = ["rt", "macros", "time", "sync", "process"] }
-net-spider = { git = "https://codeberg.org/flecs-tech/net-spider.git", rev = "5112346023b4f67bbce0f75596be6dc147148d6e" }
+net-spider = { git = "https://git.flecs.tech/flecs/net-spider.git", rev = "5112346023b4f67bbce0f75596be6dc147148d6e" }
 ipnet = "2.11.0"
