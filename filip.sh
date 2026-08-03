@@ -142,6 +142,13 @@ confirm_yn() {
   fi
 }
 
+# strip an optional leading 'v' and an optional '-codename' suffix from a
+# version number, e.g. v5.2.0-red-deer -> 5.2.0
+strip_version() {
+  local VERSION="${1#v}"
+  printf '%s' "${VERSION%%-*}"
+}
+
 # compare two version numbers in a robust way
 cmp_less() {
   if [ -z "${1}" ] || [ -z "${2}" ]; then
@@ -677,6 +684,28 @@ determine_latest_core_version() {
   fi
 }
 
+MIN_VERSION_CORE="5.2.0"
+OLD_INSTALLER_URL="install-old.flecs.tech"
+verify_core_version() {
+  if [ -z "${VERSION_CORE}" ]; then
+    internal_error "VERSION_CORE not set in verify_core_version"
+  fi
+
+  local VERSION=$(strip_version "${VERSION_CORE}")
+  if [[ ! ${VERSION} =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    log_warning "Could not parse FLECS core version ${VERSION_CORE}"
+    log_warning "Skipping check for minimum supported version ${MIN_VERSION_CORE}"
+    return 0
+  fi
+
+  if cmp_less "${VERSION}" "${MIN_VERSION_CORE}"; then
+    log_error "${ME} cannot install FLECS core ${VERSION_CORE}"
+    log_error "This installer supports FLECS core ${MIN_VERSION_CORE} and later"
+    log_error "To install older versions, use the previous installer instead:"
+    log_fatal "    curl -fsSL ${OLD_INSTALLER_URL} | bash"
+  fi
+}
+
 banner() {
   if [ -z "${NO_BANNER}" ]; then
     echo "  ▒▒▒▒▒▒▒▒  ▒▒  ▒▒        ▒▒  ▒▒▒▒▒▒▒ "
@@ -810,6 +839,7 @@ if [ -z "${FLECS_TESTING}" ]; then
 
   # query latest FLECS version online
   determine_latest_version
+  verify_core_version
 
   remove_old_flecs
 
