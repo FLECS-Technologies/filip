@@ -22,6 +22,7 @@ CORE_ENV_ARGS=()
 FLOXY_ENV_ARGS=()
 WEBAPP_ENV_ARGS=()
 VERSION_OTEL_COLLECTOR="0"
+FENCE_ENV_ARGS=()
 STDOUT=/dev/null
 STDERR=/dev/null
 
@@ -40,10 +41,12 @@ print_usage() {
   echo "     --offline                       skip connectivity check, version lookup and Docker installation (requires --core-version and --webapp-version)"
   echo "     --core-version <ver>            Install version <ver> of flecs-core instead of the latest version"
   echo "     --webapp-version <ver>          Install version <ver> of flecs-webapp instead of the latest version, or 'none' to skip installing it"
+  echo "     --fence-version <ver>           Install version <ver> of flecs-fence instead of the latest version"
   echo "     --http-port <port>              use <port> for accessing the reverse proxy via http"
   echo "     --https-port <port>             use <port> for accessing the reverse proxy via https"
   echo "     --core-env <KEY=VAL>            pass an extra environment variable to the core container (repeatable)"
   echo "     --floxy-env <KEY=VAL>           pass an extra environment variable to the floxy container (repeatable)"
+  echo "     --fence-env <KEY=VAL>           pass an extra environment variable to the fence container (repeatable)"
   echo "     --webapp-env <KEY=VAL>          pass an extra environment variable to the webapp container (repeatable)"
   echo "     --install-otel-collector        install an otel-collector alongside FLECS"
   echo "     --otel-collector-version <ver>  Install version <ver> of otel-collector instead of the default version"
@@ -233,6 +236,15 @@ parse_args() {
         fi
         shift
         ;;
+      --fence-version)
+        VERSION_FENCE=${2}
+        if [ -z "${VERSION_FENCE}" ]; then
+          log_error "argument --fence-version requires a value"
+          print_usage
+          exit 1
+        fi
+        shift
+        ;;
       --whitelabel)
         WHITELABEL=${2}
         if [ -z "${WHITELABEL}" ]; then
@@ -306,6 +318,15 @@ parse_args() {
           print_usage
           exit 1
         fi
+        shift
+        ;;
+      --fence-env)
+        if [ -z "${2}" ]; then
+          log_error "argument --fence-env requires a value"
+          print_usage
+          exit 1
+        fi
+        FENCE_ENV_ARGS+=("${2}")
         shift
         ;;
       --help)
@@ -767,6 +788,33 @@ verify_core_version() {
   fi
 }
 
+# All Versions from 5.6.0 onwards ship with fence system container
+REQUIRE_FENCE_FROM_VERSION="5.6.0"
+INSTALL_FENCE=
+
+# Determine if we install fence as system container or app.
+# All core versions >= 5.6.0 require fence as system container.
+determine_fence_setup() {
+  if [ -z "${VERSION_CORE}" ]; then
+    internal_error "VERSION_CORE not set in determine_fence_setup"
+  fi
+
+  local CORE=$(strip_version "${VERSION_CORE}")
+
+  if [[ ! ${CORE} =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    log_warning "Could not parse FLECS core (${VERSION_CORE}) version."
+    log_warning "Falling back to default behaviour: fence will be installed as system container."
+    INSTALL_FENCE=1
+    return 0
+  fi
+
+  if cmp_less "${CORE}" "${REQUIRE_FENCE_FROM_VERSION}"; then
+    INSTALL_FENCE=0
+  else
+    INSTALL_FENCE=1
+  fi
+}
+
 banner() {
   if [ -z "${NO_BANNER}" ]; then
     echo "  ▒▒▒▒▒▒▒▒  ▒▒  ▒▒        ▒▒  ▒▒▒▒▒▒▒ "
@@ -805,7 +853,12 @@ start_flecs() {
   [ -n "${WHITELABEL}" ] && ENV_ARGS+=(-e "WHITELABEL=${WHITELABEL}")
   [ -n "${HTTP_PORT}" ] && ENV_ARGS+=(-e "FLOXY_HTTP_PORT=${HTTP_PORT}")
   [ -n "${HTTPS_PORT}" ] && ENV_ARGS+=(-e "FLOXY_HTTPS_PORT=${HTTPS_PORT}")
+  [ -n "${VERSION_FENCE}" ] && ENV_ARGS+=(-e "VERSION_FENCE=${VERSION_FENCE}")
   [ -n "${VERSION_FLOXY}" ] && ENV_ARGS+=(-e "VERSION_FLOXY=${VERSION_FLOXY}")
+  if [ -z "${INSTALL_FENCE}" ]; then
+    internal_error "INSTALL_FENCE not set in start_flecs"
+  fi
+  ENV_ARGS+=(-e "INSTALL_FENCE=${INSTALL_FENCE}")
   local PAIRS
   PAIRS=$(build_env_pairs "${CORE_ENV_ARGS[@]}") && [ -n "${PAIRS}" ] && ENV_ARGS+=(-e "FILIP_CORE_ENV=${PAIRS}")
   PAIRS=$(build_env_pairs "${FLOXY_ENV_ARGS[@]}") && [ -n "${PAIRS}" ] && ENV_ARGS+=(-e "FILIP_FLOXY_ENV=${PAIRS}")
@@ -815,6 +868,7 @@ start_flecs() {
     ENV_ARGS+=(-e "VERSION_OTEL_COLLECTOR=${VERSION_OTEL_COLLECTOR}")
     ENV_ARGS+=(-e "OTEL_EXPORT_DESTINATION=${OTEL_EXPORT_DESTINATION}")
   fi
+  PAIRS=$(build_env_pairs "${FENCE_ENV_ARGS[@]}") && [ -n "${PAIRS}" ] && ENV_ARGS+=(-e "FILIP_FENCE_ENV=${PAIRS}")
   local FILIP_TAG="latest"
   if [ -n "$VERSION_FILIP" ]; then
     FILIP_TAG="$VERSION_FILIP"
@@ -916,6 +970,8 @@ if [ -z "${FLECS_TESTING}" ]; then
   # query latest FLECS version online
   determine_latest_version
   verify_core_version
+  # check if we install fence as system container or app
+  determine_fence_setup
 
   remove_old_flecs
 

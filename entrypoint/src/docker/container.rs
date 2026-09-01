@@ -1,6 +1,6 @@
 use crate::docker::container::config::{
-    core_container_config, floxy_container_config, otel_container_config, otel_install_requested,
-    webapp_container_config, webapp_install_requested,
+    core_container_config, fence_container_config, floxy_container_config, otel_container_config,
+    otel_install_requested, webapp_container_config, webapp_install_requested,
 };
 use crate::docker::network::NetworkInfo;
 use crate::{error, warn};
@@ -16,7 +16,10 @@ const CORE_VOLUME: &str = "flecsd";
 const WEBAPP_CONTAINER_NAME: &str = "flecs-webapp";
 const FLOXY_CONTAINER_NAME: &str = "flecs-floxy";
 const OTEL_CONTAINER_NAME: &str = "flecs-otelcol";
+const FENCE_CONTAINER_NAME: &str = "flecs-fence";
+const FENCE_VOLUME: &str = "flecs-fence";
 pub mod config;
+pub use config::install_fence;
 
 #[derive(thiserror::Error, Debug)]
 pub enum CreateContainerError {
@@ -103,10 +106,12 @@ pub async fn create_containers(
         free_http_port,
         gateway,
     }: NetworkInfo,
+    install_fence: bool,
 ) -> Result<(), CreateContainerError> {
     let [first_octet, second_octet, _, _] = gateway.octets();
     let webapp_ip = Ipv4Addr::new(first_octet, second_octet, 255, 254);
     let install_otel = otel_install_requested();
+    let fence_ip: Ipv4Addr = Ipv4Addr::new(first_octet, second_octet, 255, 253);
 
     // floxy
     let config = floxy_container_config(free_http_port, free_https_port, gateway);
@@ -122,6 +127,15 @@ pub async fn create_containers(
     let config = core_container_config(install_otel.then_some(gateway));
     re_create_container(docker_client, config).await?;
 
+    // fence
+    if install_fence {
+        let config: ContainerConfig = fence_container_config(fence_ip);
+        re_create_container(docker_client, config).await?;
+    } else {
+        stop_container(docker_client, FENCE_CONTAINER_NAME).await?;
+        remove_container(docker_client, FENCE_CONTAINER_NAME).await?;
+    }
+
     // webapp
     if webapp_install_requested() {
         let config = webapp_container_config(webapp_ip, gateway);
@@ -131,7 +145,10 @@ pub async fn create_containers(
     Ok(())
 }
 
-pub async fn start_containers(docker_client: &Docker) -> Result<(), bollard::errors::Error> {
+pub async fn start_containers(
+    docker_client: &Docker,
+    install_fence: bool,
+) -> Result<(), bollard::errors::Error> {
     docker_client
         .start_container(FLOXY_CONTAINER_NAME, None)
         .await?;
@@ -146,6 +163,11 @@ pub async fn start_containers(docker_client: &Docker) -> Result<(), bollard::err
     if container_exists(docker_client, WEBAPP_CONTAINER_NAME).await? {
         docker_client
             .start_container(WEBAPP_CONTAINER_NAME, None)
+            .await?;
+    }
+    if install_fence {
+        docker_client
+            .start_container(FENCE_CONTAINER_NAME, None)
             .await?;
     }
     Ok(())
@@ -205,6 +227,7 @@ pub async fn remove_containers(docker_client: &Docker) -> Result<(), bollard::er
     remove_container(docker_client, WEBAPP_CONTAINER_NAME).await?;
     remove_container(docker_client, CORE_CONTAINER_NAME).await?;
     remove_container(docker_client, OTEL_CONTAINER_NAME).await?;
+    remove_container(docker_client, FENCE_CONTAINER_NAME).await?;
     Ok(())
 }
 
@@ -213,5 +236,6 @@ pub async fn stop_containers(docker_client: &Docker) -> Result<(), bollard::erro
     stop_container(docker_client, WEBAPP_CONTAINER_NAME).await?;
     stop_container(docker_client, CORE_CONTAINER_NAME).await?;
     stop_container(docker_client, OTEL_CONTAINER_NAME).await?;
+    stop_container(docker_client, FENCE_CONTAINER_NAME).await?;
     Ok(())
 }

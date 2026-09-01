@@ -1,6 +1,6 @@
 use super::{
-    CORE_CONTAINER_NAME, CORE_VOLUME, FLOXY_CONTAINER_NAME, OTEL_CONTAINER_NAME,
-    WEBAPP_CONTAINER_NAME,
+    CORE_CONTAINER_NAME, CORE_VOLUME, FENCE_CONTAINER_NAME, FENCE_VOLUME, FLOXY_CONTAINER_NAME,
+    OTEL_CONTAINER_NAME, WEBAPP_CONTAINER_NAME,
 };
 use crate::docker::network::FLECS_NETWORK_NAME;
 use crate::docker::volume::{
@@ -51,11 +51,22 @@ const OTEL_CERTS_MOUNT_TARGET_CORE: &str = "/etc/flecs/otel-certs";
 const CORE_SECRET_EXPORT_PATH_ENV: &str = "FLECS_CORE_SECRET_EXPORT_PATH";
 const CORE_OTEL_GRPC_COLLECTOR_ENDPOINT_ENV: &str = "FLECS_CORE_OTEL_GRPC_COLLECTOR_ENDPOINT";
 const CORE_OTEL_HTTP_COLLECTOR_ENDPOINT_ENV: &str = "FLECS_CORE_OTEL_HTTP_COLLECTOR_ENDPOINT";
+const FENCE_IMAGE: &str = "flecs/fence";
+const FENCE_ENV_VAR: &str = "FILIP_FENCE_ENV";
+const FENCE_VERSION_ENV: &str = "VERSION_FENCE";
+const FENCE_VERSION: &str = "latest";
+const INSTALL_FENCE_ENV: &str = "INSTALL_FENCE";
 
 /// Whether otel-collector should be installed
 /// `INSTALL_OTEL_COLLECTOR=1` => true else false.
 pub fn otel_install_requested() -> bool {
     matches!(std::env::var(OTEL_INSTALL_ENV).as_deref(), Ok("1"))
+}
+
+/// Whether fence should be installed. Installed by default;
+/// `INSTALL_FENCE=0` disables it.
+pub fn install_fence() -> bool {
+    !matches!(std::env::var(INSTALL_FENCE_ENV).as_deref(), Ok("0"))
 }
 
 /// Whether flecs-webapp should be installed. Installed by default;
@@ -318,6 +329,48 @@ pub fn webapp_container_config(ip: Ipv4Addr, gateway: Ipv4Addr) -> ContainerConf
             image: Some(format!("{CONTAINER_REGISTRY}/{WEBAPP_IMAGE}:{tag}")),
             host_config: Some(HostConfig {
                 extra_hosts: Some(vec![format!("flecs-floxy:{gateway}")]),
+                ..HostConfig::default()
+            }),
+            env,
+            networking_config: Some(NetworkingConfig {
+                endpoints_config: Some(HashMap::from([(
+                    FLECS_NETWORK_NAME.to_string(),
+                    EndpointSettings {
+                        ipam_config: Some(EndpointIpamConfig {
+                            ipv4_address: Some(ip.to_string()),
+                            ..EndpointIpamConfig::default()
+                        }),
+                        ..EndpointSettings::default()
+                    },
+                )])),
+            }),
+            ..ContainerCreateBody::default()
+        },
+    )
+}
+
+pub fn fence_container_config(ip: Ipv4Addr) -> ContainerConfig {
+    let version = std::env::var(FENCE_VERSION_ENV);
+    let version = version.as_deref().unwrap_or(FENCE_VERSION);
+    let env = std::env::var(FENCE_ENV_VAR)
+        .ok()
+        .map(|pairs| parse_env_pairs(&pairs))
+        .filter(|v: &Vec<String>| !v.is_empty());
+    (
+        CreateContainerOptions {
+            name: Some(FENCE_CONTAINER_NAME.to_string()),
+            ..CreateContainerOptions::default()
+        },
+        ContainerCreateBody {
+            image: Some(format!("{CONTAINER_REGISTRY}/{FENCE_IMAGE}:{version}")),
+            hostname: Some(FENCE_CONTAINER_NAME.to_string()),
+            host_config: Some(HostConfig {
+                mounts: Some(vec![Mount {
+                    typ: Some(MountTypeEnum::VOLUME),
+                    source: Some(FENCE_VOLUME.to_string()),
+                    target: Some("/var/local/lib/fence".to_string()),
+                    ..Mount::default()
+                }]),
                 ..HostConfig::default()
             }),
             env,

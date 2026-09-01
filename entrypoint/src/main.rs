@@ -3,7 +3,7 @@ mod logging;
 mod signal;
 use crate::docker::container::config::otel_install_requested;
 use crate::docker::container::{
-    create_containers, remove_containers, start_containers, stop_containers,
+    create_containers, install_fence, remove_containers, start_containers, stop_containers,
 };
 use crate::docker::docker_client;
 use crate::docker::network::network_setup;
@@ -30,6 +30,7 @@ type Result<T> = std::result::Result<T, Error>;
 async fn main() -> Result<()> {
     let stop_signal = init_signal_handler()?;
     let docker_client = docker_client()?;
+    let install_fence = install_fence();
 
     info!("Cleanup of any leftover containers");
     stop_containers(&docker_client).await?;
@@ -46,10 +47,10 @@ async fn main() -> Result<()> {
     }
 
     info!("Container creation");
-    create_containers(&docker_client.clone(), network_info).await?;
+    create_containers(&docker_client.clone(), network_info, install_fence).await?;
 
     info!("Container startup");
-    start_containers(&docker_client).await?;
+    start_containers(&docker_client, install_fence).await?;
     info!("FLECS is up and running");
 
     stop_signal
