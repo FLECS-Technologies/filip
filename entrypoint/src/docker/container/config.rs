@@ -21,6 +21,7 @@ const CORE_VERSION: &str = "latest";
 const CORE_VERSION_ENV: &str = "VERSION_CORE";
 const FLOXY_IMAGE: &str = "flecs/floxy";
 const FLOXY_VERSION: &str = "0";
+const FLOXY_VERSION_ENV: &str = "VERSION_FLOXY";
 const WEBAPP_IMAGE: &str = "flecs/webapp";
 const WEBAPP_VERSION: &str = "latest";
 const WEBAPP_VERSION_ENV: &str = "VERSION_WEBAPP";
@@ -129,6 +130,8 @@ pub fn floxy_container_config(
     https_port: u16,
     gateway: Ipv4Addr,
 ) -> ContainerConfig {
+    let version = std::env::var(FLOXY_VERSION_ENV);
+    let version = version.as_deref().unwrap_or(FLOXY_VERSION);
     let mut env = vec![
         format!("FLOXY_HTTP_PORT={http_port}"),
         format!("FLOXY_HTTPS_PORT={https_port}"),
@@ -143,9 +146,7 @@ pub fn floxy_container_config(
             ..CreateContainerOptions::default()
         },
         ContainerCreateBody {
-            image: Some(format!(
-                "{CONTAINER_REGISTRY}/{FLOXY_IMAGE}:{FLOXY_VERSION}"
-            )),
+            image: Some(format!("{CONTAINER_REGISTRY}/{FLOXY_IMAGE}:{version}")),
             hostname: Some(FLOXY_CONTAINER_NAME.to_string()),
             host_config: Some(HostConfig {
                 network_mode: Some("host".to_string()),

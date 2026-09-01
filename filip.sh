@@ -224,6 +224,15 @@ parse_args() {
         fi
         shift
         ;;
+      --floxy-version)
+        VERSION_FLOXY=${2}
+        if [ -z "${VERSION_FLOXY}" ]; then
+          log_error "argument --floxy-version requires a value"
+          print_usage
+          exit 1
+        fi
+        shift
+        ;;
       --whitelabel)
         WHITELABEL=${2}
         if [ -z "${WHITELABEL}" ]; then
@@ -796,6 +805,7 @@ start_flecs() {
   [ -n "${WHITELABEL}" ] && ENV_ARGS+=(-e "WHITELABEL=${WHITELABEL}")
   [ -n "${HTTP_PORT}" ] && ENV_ARGS+=(-e "FLOXY_HTTP_PORT=${HTTP_PORT}")
   [ -n "${HTTPS_PORT}" ] && ENV_ARGS+=(-e "FLOXY_HTTPS_PORT=${HTTPS_PORT}")
+  [ -n "${VERSION_FLOXY}" ] && ENV_ARGS+=(-e "VERSION_FLOXY=${VERSION_FLOXY}")
   local PAIRS
   PAIRS=$(build_env_pairs "${CORE_ENV_ARGS[@]}") && [ -n "${PAIRS}" ] && ENV_ARGS+=(-e "FILIP_CORE_ENV=${PAIRS}")
   PAIRS=$(build_env_pairs "${FLOXY_ENV_ARGS[@]}") && [ -n "${PAIRS}" ] && ENV_ARGS+=(-e "FILIP_FLOXY_ENV=${PAIRS}")
