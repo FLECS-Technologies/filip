@@ -1,14 +1,13 @@
 name: Develop
 
 on:
-  workflow_dispatch:
-  push:
-    branches: [main]
+  pull_request:
 
 jobs:
   build-and-push:
-    name: Build and push dev
+    name: Build and push dev (dry-run)
     uses: ./.github/workflows/build-and-push.yml
     with:
       channel: dev
+      dry-run: true
     secrets: inherit
