@@ -210,7 +210,10 @@ mod tests {
 
     #[test]
     fn escaped_space_in_value() {
-        assert_eq!(parse_env_pairs(r"KEY=hello\ world"), vec!["KEY=hello world"]);
+        assert_eq!(
+            parse_env_pairs(r"KEY=hello\ world"),
+            vec!["KEY=hello world"]
+        );
     }
 
     #[test]
