@@ -31,19 +31,19 @@ FILIP_IMAGE=${CONTAINER_REGISTRY}/flecs/filip
 print_usage() {
   echo "Usage: ${SCRIPTNAME} [options]"
   echo
-  echo "  -v --verbose               print command output (apt, docker, ...)"
-  echo "  -d --debug                 print verbose output plus internal debug messages"
-  echo "  -y --yes                   assume yes as answer to all prompts (unattended mode)"
-  echo "     --no-banner             do not print ${ME} banner"
-  echo "     --no-welcome            do not print welcome message"
-  echo "     --core-version <ver>    Install version <ver> of flecs-core instead of the latest version"
-  echo "     --webapp-version <ver>  Install version <ver> of flecs-webapp instead of the latest version"
-  echo "     --http-port <port>      use <port> for accessing the reverse proxy via http"
-  echo "     --https-port <port>     use <port> for accessing the reverse proxy via https"
-  echo "     --core-env <KEY=VAL>    pass an extra environment variable to the core container (repeatable)"
-  echo "     --floxy-env <KEY=VAL>   pass an extra environment variable to the floxy container (repeatable)"
-  echo "     --webapp-env <KEY=VAL>  pass an extra environment variable to the webapp container (repeatable)"
-  echo "     --help                  print this help and exit"
+  echo "  -v --verbose                       print command output (apt, docker, ...)"
+  echo "  -d --debug                         print verbose output plus internal debug messages"
+  echo "  -y --yes                           assume yes as answer to all prompts (unattended mode)"
+  echo "     --no-banner                     do not print ${ME} banner"
+  echo "     --no-welcome                    do not print welcome message"
+  echo "     --core-version <ver>            Install version <ver> of flecs-core instead of the latest version"
+  echo "     --webapp-version <ver>          Install version <ver> of flecs-webapp instead of the latest version"
+  echo "     --http-port <port>              use <port> for accessing the reverse proxy via http"
+  echo "     --https-port <port>             use <port> for accessing the reverse proxy via https"
+  echo "     --core-env <KEY=VAL>            pass an extra environment variable to the core container (repeatable)"
+  echo "     --floxy-env <KEY=VAL>           pass an extra environment variable to the floxy container (repeatable)"
+  echo "     --webapp-env <KEY=VAL>          pass an extra environment variable to the webapp container (repeatable)"
+  echo "     --help                          print this help and exit"
 }
 
 # some log functions...
