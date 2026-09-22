@@ -1,12 +1,15 @@
 mod docker;
 mod logging;
 mod signal;
+use crate::docker::container::config::otel_install_requested;
 use crate::docker::container::{
     create_containers, remove_containers, start_containers, stop_containers,
 };
 use crate::docker::docker_client;
 use crate::docker::network::network_setup;
-use crate::docker::volume::create_floxy_data_volume;
+use crate::docker::volume::{
+    create_floxy_data_volume, create_otel_certs_volume, create_otel_logs_volume,
+};
 use crate::signal::init_signal_handler;
 
 #[derive(thiserror::Error, Debug)]
@@ -37,6 +40,10 @@ async fn main() -> Result<()> {
 
     info!("Volume creation");
     create_floxy_data_volume(&docker_client).await?;
+    if otel_install_requested() {
+        create_otel_certs_volume(&docker_client).await?;
+        create_otel_logs_volume(&docker_client).await?;
+    }
 
     info!("Container creation");
     create_containers(&docker_client.clone(), network_info).await?;

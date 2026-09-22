@@ -21,6 +21,7 @@ ARGS=("$@")
 CORE_ENV_ARGS=()
 FLOXY_ENV_ARGS=()
 WEBAPP_ENV_ARGS=()
+VERSION_OTEL_COLLECTOR="0"
 STDOUT=/dev/null
 STDERR=/dev/null
 
@@ -43,6 +44,9 @@ print_usage() {
   echo "     --core-env <KEY=VAL>            pass an extra environment variable to the core container (repeatable)"
   echo "     --floxy-env <KEY=VAL>           pass an extra environment variable to the floxy container (repeatable)"
   echo "     --webapp-env <KEY=VAL>          pass an extra environment variable to the webapp container (repeatable)"
+  echo "     --install-otel-collector        install an otel-collector alongside FLECS"
+  echo "     --otel-collector-version <ver>  Install version <ver> of otel-collector instead of the default version"
+  echo "     --otel-export-destination <url> upstream URL the otel-collector exports its data to (required with --install-otel-collector)"
   echo "     --help                          print this help and exit"
 }
 
@@ -270,6 +274,27 @@ parse_args() {
         WEBAPP_ENV_ARGS+=("${2}")
         shift
         ;;
+      --install-otel-collector)
+        INSTALL_OTEL_COLLECTOR=1
+        ;;
+      --otel-collector-version)
+        VERSION_OTEL_COLLECTOR=${2}
+        if [ -z "${VERSION_OTEL_COLLECTOR}" ]; then
+          log_error "argument --otel-collector-version requires a value"
+          print_usage
+          exit 1
+        fi
+        shift
+        ;;
+      --otel-export-destination)
+        OTEL_EXPORT_DESTINATION=${2}
+        if [ -z "${OTEL_EXPORT_DESTINATION}" ]; then
+          log_error "argument --otel-export-destination requires a value"
+          print_usage
+          exit 1
+        fi
+        shift
+        ;;
       --help)
         print_usage
         exit 0
@@ -282,6 +307,12 @@ parse_args() {
     esac
     shift
   done
+
+  if [ "${INSTALL_OTEL_COLLECTOR}" = "1" ] && [ -z "${OTEL_EXPORT_DESTINATION}" ]; then
+    log_error "argument --otel-export-destination is required with --install-otel-collector"
+    print_usage
+    exit 1
+  fi
 }
 
 welcome() {
@@ -743,6 +774,11 @@ start_flecs() {
   PAIRS=$(build_env_pairs "${CORE_ENV_ARGS[@]}") && [ -n "${PAIRS}" ] && ENV_ARGS+=(-e "FILIP_CORE_ENV=${PAIRS}")
   PAIRS=$(build_env_pairs "${FLOXY_ENV_ARGS[@]}") && [ -n "${PAIRS}" ] && ENV_ARGS+=(-e "FILIP_FLOXY_ENV=${PAIRS}")
   PAIRS=$(build_env_pairs "${WEBAPP_ENV_ARGS[@]}") && [ -n "${PAIRS}" ] && ENV_ARGS+=(-e "FILIP_WEBAPP_ENV=${PAIRS}")
+  if [ "${INSTALL_OTEL_COLLECTOR}" = "1" ]; then
+    ENV_ARGS+=(-e "INSTALL_OTEL_COLLECTOR=1")
+    ENV_ARGS+=(-e "VERSION_OTEL_COLLECTOR=${VERSION_OTEL_COLLECTOR}")
+    ENV_ARGS+=(-e "OTEL_EXPORT_DESTINATION=${OTEL_EXPORT_DESTINATION}")
+  fi
   local FILIP_TAG="latest"
   if [ -n "$VERSION_FILIP" ]; then
     FILIP_TAG="$VERSION_FILIP"
