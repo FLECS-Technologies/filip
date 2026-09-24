@@ -1,6 +1,6 @@
 use crate::docker::container::config::{
     core_container_config, floxy_container_config, otel_container_config, otel_install_requested,
-    webapp_container_config,
+    webapp_container_config, webapp_install_requested,
 };
 use crate::docker::network::NetworkInfo;
 use crate::{error, warn};
@@ -124,8 +124,10 @@ pub async fn create_containers(
     re_create_container(docker_client, config).await?;
 
     // webapp
-    let config = webapp_container_config(webapp_ip, gateway);
-    re_create_container(docker_client, config).await?;
+    if webapp_install_requested() {
+        let config = webapp_container_config(webapp_ip, gateway);
+        re_create_container(docker_client, config).await?;
+    }
 
     Ok(())
 }
@@ -142,9 +144,11 @@ pub async fn start_containers(docker_client: &Docker) -> Result<(), bollard::err
             .start_container(OTEL_CONTAINER_NAME, None)
             .await?;
     }
-    docker_client
-        .start_container(WEBAPP_CONTAINER_NAME, None)
-        .await?;
+    if container_exists(docker_client, WEBAPP_CONTAINER_NAME).await? {
+        docker_client
+            .start_container(WEBAPP_CONTAINER_NAME, None)
+            .await?;
+    }
     Ok(())
 }
 

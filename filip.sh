@@ -38,7 +38,7 @@ print_usage() {
   echo "     --no-banner                     do not print ${ME} banner"
   echo "     --no-welcome                    do not print welcome message"
   echo "     --core-version <ver>            Install version <ver> of flecs-core instead of the latest version"
-  echo "     --webapp-version <ver>          Install version <ver> of flecs-webapp instead of the latest version"
+  echo "     --webapp-version <ver>          Install version <ver> of flecs-webapp instead of the latest version, or 'none' to skip installing it"
   echo "     --http-port <port>              use <port> for accessing the reverse proxy via http"
   echo "     --https-port <port>             use <port> for accessing the reverse proxy via https"
   echo "     --core-env <KEY=VAL>            pass an extra environment variable to the core container (repeatable)"
@@ -310,6 +310,12 @@ parse_args() {
 
   if [ "${INSTALL_OTEL_COLLECTOR}" = "1" ] && [ -z "${OTEL_EXPORT_DESTINATION}" ]; then
     log_error "argument --otel-export-destination is required with --install-otel-collector"
+    print_usage
+    exit 1
+  fi
+
+  if [ "${VERSION_WEBAPP}" = "none" ] && [ ${#WEBAPP_ENV_ARGS[@]} -gt 0 ]; then
+    log_error "argument --webapp-env cannot be used together with --webapp-version none"
     print_usage
     exit 1
   fi
@@ -678,7 +684,9 @@ determine_latest_version() {
   else
     log_debug "Using user provided core version: ${VERSION_CORE}"
   fi
-  if [ -z "${VERSION_WEBAPP}" ]; then
+  if [ "${VERSION_WEBAPP}" = "none" ]; then
+    log_debug "Skipping FLECS webapp version detection (--webapp-version none)"
+  elif [ -z "${VERSION_WEBAPP}" ]; then
     determine_latest_webapp_version
   else
     log_debug "Using user provided webapp version: ${VERSION_WEBAPP}"
@@ -766,7 +774,12 @@ build_env_pairs() {
 }
 
 start_flecs() {
-  local ENV_ARGS=(-e "VERSION_CORE=${VERSION_CORE}" -e "VERSION_WEBAPP=${VERSION_WEBAPP}")
+  local ENV_ARGS=(-e "VERSION_CORE=${VERSION_CORE}")
+  if [ "${VERSION_WEBAPP}" = "none" ]; then
+    ENV_ARGS+=(-e "INSTALL_WEBAPP=0")
+  else
+    ENV_ARGS+=(-e "VERSION_WEBAPP=${VERSION_WEBAPP}")
+  fi
   [ -n "${WHITELABEL}" ] && ENV_ARGS+=(-e "WHITELABEL=${WHITELABEL}")
   [ -n "${HTTP_PORT}" ] && ENV_ARGS+=(-e "FLOXY_HTTP_PORT=${HTTP_PORT}")
   [ -n "${HTTPS_PORT}" ] && ENV_ARGS+=(-e "FLOXY_HTTPS_PORT=${HTTPS_PORT}")

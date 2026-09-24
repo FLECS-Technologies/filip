@@ -31,6 +31,7 @@ const WEBAPP_ENV_VAR: &str = "FILIP_WEBAPP_ENV";
 const OTEL_IMAGE: &str = "flecs/otel-collector";
 const OTEL_VERSION_DEFAULT: &str = "0";
 pub const OTEL_INSTALL_ENV: &str = "INSTALL_OTEL_COLLECTOR";
+pub const WEBAPP_INSTALL_ENV: &str = "INSTALL_WEBAPP";
 const OTEL_VERSION_ENV: &str = "VERSION_OTEL_COLLECTOR";
 const OTEL_EXPORT_DESTINATION_ENV: &str = "OTEL_EXPORT_DESTINATION";
 const OTEL_UPSTREAM_ENDPOINT_ENV: &str = "OTLP_UPSTREAM_ENDPOINT";
@@ -51,6 +52,12 @@ const CORE_OTEL_HTTP_COLLECTOR_ENDPOINT_ENV: &str = "FLECS_CORE_OTEL_HTTP_COLLEC
 /// `INSTALL_OTEL_COLLECTOR=1` => true else false.
 pub fn otel_install_requested() -> bool {
     matches!(std::env::var(OTEL_INSTALL_ENV).as_deref(), Ok("1"))
+}
+
+/// Whether flecs-webapp should be installed. Installed by default;
+/// `INSTALL_WEBAPP=0` disables it.
+pub fn webapp_install_requested() -> bool {
+    !matches!(std::env::var(WEBAPP_INSTALL_ENV).as_deref(), Ok("0"))
 }
 
 fn parse_env_pairs(s: &str) -> Vec<String> {
