@@ -266,6 +266,16 @@ pub fn otel_container_config(ip: Ipv4Addr) -> ContainerConfig {
                     maximum_retry_count: Some(0),
                     name: Some(RestartPolicyNameEnum::ON_FAILURE),
                 }),
+                // The debug exporter writes to stdout, which Docker's json-file
+                // driver captures with no size limit by default. Caps log size
+                // at ~60MB.
+                log_config: Some(HostConfigLogConfig {
+                    typ: Some("json-file".to_string()),
+                    config: Some(HashMap::from([
+                        ("max-size".to_string(), "20m".to_string()),
+                        ("max-file".to_string(), "3".to_string()),
+                    ])),
+                }),
                 ..HostConfig::default()
             }),
             env: Some(vec![format!(
