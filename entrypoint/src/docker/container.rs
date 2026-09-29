@@ -106,7 +106,6 @@ pub async fn create_containers(
 ) -> Result<(), CreateContainerError> {
     let [first_octet, second_octet, _, _] = gateway.octets();
     let webapp_ip = Ipv4Addr::new(first_octet, second_octet, 255, 254);
-    let otelcol_ip = Ipv4Addr::new(first_octet, second_octet, 255, 253);
     let install_otel = otel_install_requested();
 
     // floxy
@@ -115,12 +114,12 @@ pub async fn create_containers(
 
     // otel-collector
     if install_otel {
-        let config = otel_container_config(otelcol_ip);
+        let config = otel_container_config(gateway);
         re_create_container(docker_client, config).await?;
     }
 
     // core
-    let config = core_container_config(install_otel.then_some(otelcol_ip));
+    let config = core_container_config(install_otel.then_some(gateway));
     re_create_container(docker_client, config).await?;
 
     // webapp

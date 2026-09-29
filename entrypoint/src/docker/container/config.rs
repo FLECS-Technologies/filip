@@ -7,8 +7,8 @@ use crate::docker::volume::{
     FLOXY_CERT_VOLUME, FLOXY_DATA_VOLUME, OTEL_CERTS_VOLUME, OTEL_LOGS_VOLUME,
 };
 use bollard::config::{
-    ContainerCreateBody, EndpointIpamConfig, EndpointSettings, HostConfig, Mount, MountTypeEnum,
-    NetworkingConfig, RestartPolicy, RestartPolicyNameEnum,
+    ContainerCreateBody, EndpointIpamConfig, EndpointSettings, HostConfig, HostConfigLogConfig,
+    Mount, MountTypeEnum, NetworkingConfig, RestartPolicy, RestartPolicyNameEnum,
 };
 use bollard::query_parameters::CreateContainerOptions;
 use std::collections::HashMap;
@@ -35,6 +35,8 @@ pub const WEBAPP_INSTALL_ENV: &str = "INSTALL_WEBAPP";
 const OTEL_VERSION_ENV: &str = "VERSION_OTEL_COLLECTOR";
 const OTEL_EXPORT_DESTINATION_ENV: &str = "OTEL_EXPORT_DESTINATION";
 const OTEL_UPSTREAM_ENDPOINT_ENV: &str = "OTLP_UPSTREAM_ENDPOINT";
+const OTEL_BIND_ADDRESS_ENV: &str = "OTEL_BIND_ADDRESS";
+const OTEL_GRPC_PORT: u16 = 4317;
 const OTEL_HTTP_PORT: u16 = 4318;
 /// Path inside the otel-collector container its exporter reads the device's
 /// mTLS identity from (client.pem/client.key), matching its baked-in config.
@@ -46,6 +48,7 @@ const OTEL_LOGS_MOUNT_TARGET: &str = "/var/log/otelcol";
 /// ends up on the volume shared with the otel-collector.
 const OTEL_CERTS_MOUNT_TARGET_CORE: &str = "/etc/flecs/otel-certs";
 const CORE_SECRET_EXPORT_PATH_ENV: &str = "FLECS_CORE_SECRET_EXPORT_PATH";
+const CORE_OTEL_GRPC_COLLECTOR_ENDPOINT_ENV: &str = "FLECS_CORE_OTEL_GRPC_COLLECTOR_ENDPOINT";
 const CORE_OTEL_HTTP_COLLECTOR_ENDPOINT_ENV: &str = "FLECS_CORE_OTEL_HTTP_COLLECTOR_ENDPOINT";
 
 /// Whether otel-collector should be installed
@@ -172,8 +175,9 @@ pub fn floxy_container_config(
     )
 }
 
-/// `otelcol_ip` is the otel-collector's static IP on the `flecs` bridge
-/// network, or `None` if `--install-otel-collector` was not passed.
+/// `otelcol_ip` is the IP the otel-collector listens on (the gateway of the
+/// `flecs` bridge network), or `None` if `--install-otel-collector` was not
+/// passed.
 pub fn core_container_config(otelcol_ip: Option<Ipv4Addr>) -> ContainerConfig {
     let version = std::env::var(CORE_VERSION_ENV);
     let version = version.as_deref().unwrap_or(CORE_VERSION);
@@ -204,6 +208,9 @@ pub fn core_container_config(otelcol_ip: Option<Ipv4Addr>) -> ContainerConfig {
             "{CORE_SECRET_EXPORT_PATH_ENV}={OTEL_CERTS_MOUNT_TARGET_CORE}"
         ));
         env.push(format!(
+            "{CORE_OTEL_GRPC_COLLECTOR_ENDPOINT_ENV}=http://{otelcol_ip}:{OTEL_GRPC_PORT}"
+        ));
+        env.push(format!(
             "{CORE_OTEL_HTTP_COLLECTOR_ENDPOINT_ENV}=http://{otelcol_ip}:{OTEL_HTTP_PORT}"
         ));
     }
@@ -230,10 +237,12 @@ pub fn core_container_config(otelcol_ip: Option<Ipv4Addr>) -> ContainerConfig {
     )
 }
 
-/// `ip` is the static IP to assign the collector on the `flecs` bridge
-/// network. The container joins that network only, so it's unreachable
-/// from outside Docker's bridge network.
-pub fn otel_container_config(ip: Ipv4Addr) -> ContainerConfig {
+/// The collector runs in host network mode and binds its OTLP receivers to
+/// `bind_ip` only, which is the gateway of the `flecs` bridge network. It's
+/// a host address, so containers on any bridge network can reach it via
+/// their own gateway without joining `flecs`, while it stays unreachable
+/// from outside the host.
+pub fn otel_container_config(bind_ip: Ipv4Addr) -> ContainerConfig {
     let version = std::env::var(OTEL_VERSION_ENV);
     let version = version.as_deref().unwrap_or(OTEL_VERSION_DEFAULT);
     let export_destination = std::env::var(OTEL_EXPORT_DESTINATION_ENV).unwrap_or_default();
@@ -246,6 +255,7 @@ pub fn otel_container_config(ip: Ipv4Addr) -> ContainerConfig {
             image: Some(format!("{CONTAINER_REGISTRY}/{OTEL_IMAGE}:{version}")),
             hostname: Some(OTEL_CONTAINER_NAME.to_string()),
             host_config: Some(HostConfig {
+                network_mode: Some("host".to_string()),
                 mounts: Some(vec![
                     Mount {
                         typ: Some(MountTypeEnum::VOLUME),
@@ -278,21 +288,10 @@ pub fn otel_container_config(ip: Ipv4Addr) -> ContainerConfig {
                 }),
                 ..HostConfig::default()
             }),
-            env: Some(vec![format!(
-                "{OTEL_UPSTREAM_ENDPOINT_ENV}={export_destination}"
-            )]),
-            networking_config: Some(NetworkingConfig {
-                endpoints_config: Some(HashMap::from([(
-                    FLECS_NETWORK_NAME.to_string(),
-                    EndpointSettings {
-                        ipam_config: Some(EndpointIpamConfig {
-                            ipv4_address: Some(ip.to_string()),
-                            ..EndpointIpamConfig::default()
-                        }),
-                        ..EndpointSettings::default()
-                    },
-                )])),
-            }),
+            env: Some(vec![
+                format!("{OTEL_UPSTREAM_ENDPOINT_ENV}={export_destination}"),
+                format!("{OTEL_BIND_ADDRESS_ENV}={bind_ip}"),
+            ]),
             ..ContainerCreateBody::default()
         },
     )
@@ -417,55 +416,25 @@ mod tests {
     }
 
     #[test]
-    fn otel_container_config_joins_flecs_network_with_static_ip_and_no_host_mode() {
-        let ip = Ipv4Addr::new(172, 21, 255, 253);
+    fn otel_container_config_uses_host_network_and_binds_to_given_ip() {
+        let ip = Ipv4Addr::new(172, 21, 0, 1);
         let config = otel_container_config(ip);
         assert_eq!(
             config.1.image.as_deref(),
             Some("cr.flecs.tech/flecs/otel-collector:0")
         );
-        assert!(
-            config
-                .1
-                .host_config
-                .as_ref()
-                .unwrap()
-                .network_mode
-                .is_none()
-        );
-        assert!(
-            config
-                .1
-                .host_config
-                .as_ref()
-                .unwrap()
-                .port_bindings
-                .is_none()
-        );
+        let host_config = config.1.host_config.as_ref().unwrap();
+        assert_eq!(host_config.network_mode.as_deref(), Some("host"));
+        assert!(host_config.port_bindings.is_none());
         assert!(config.1.exposed_ports.is_none());
-        let endpoints = &config
-            .1
-            .networking_config
-            .as_ref()
-            .unwrap()
-            .endpoints_config
-            .as_ref()
-            .unwrap();
-        let endpoint = endpoints.get(FLECS_NETWORK_NAME).unwrap();
-        assert_eq!(
-            endpoint
-                .ipam_config
-                .as_ref()
-                .unwrap()
-                .ipv4_address
-                .as_deref(),
-            Some("172.21.255.253")
-        );
+        assert!(config.1.networking_config.is_none());
+        let env = config.1.env.as_ref().unwrap();
+        assert!(env.contains(&format!("{OTEL_BIND_ADDRESS_ENV}=172.21.0.1")));
     }
 
     #[test]
     fn otel_container_config_mounts_certs_volume_at_collector_path() {
-        let config = otel_container_config(Ipv4Addr::new(172, 21, 255, 253));
+        let config = otel_container_config(Ipv4Addr::new(172, 21, 0, 1));
         let mounts = mounts_of(&config);
         assert!(
             mounts
@@ -480,7 +449,7 @@ mod tests {
         // The collector's docker_stats receiver is on by default and its
         // baked-in config hard-requires the socket at this exact path -
         // without it the whole collector process fails to start.
-        let config = otel_container_config(Ipv4Addr::new(172, 21, 255, 253));
+        let config = otel_container_config(Ipv4Addr::new(172, 21, 0, 1));
         let mounts = mounts_of(&config);
         assert!(
             mounts
@@ -497,7 +466,7 @@ mod tests {
         // without this mounted, those scrapers report the collector's own
         // container view instead of the host's, and config validation fails
         // outright with nothing mounted there at all.
-        let config = otel_container_config(Ipv4Addr::new(172, 21, 255, 253));
+        let config = otel_container_config(Ipv4Addr::new(172, 21, 0, 1));
         let mounts = mounts_of(&config);
         assert!(mounts.iter().any(|m| m.source.as_deref() == Some("/")
             && m.target.as_deref() == Some("/hostfs")
@@ -506,7 +475,7 @@ mod tests {
 
     #[test]
     fn otel_container_config_mounts_logs_volume() {
-        let config = otel_container_config(Ipv4Addr::new(172, 21, 255, 253));
+        let config = otel_container_config(Ipv4Addr::new(172, 21, 0, 1));
         let mounts = mounts_of(&config);
         assert!(
             mounts
@@ -514,6 +483,23 @@ mod tests {
                 .any(|m| m.source.as_deref() == Some(OTEL_LOGS_VOLUME)
                     && m.target.as_deref() == Some("/var/log/otelcol"))
         );
+    }
+
+    #[test]
+    fn otel_container_config_caps_log_size() {
+        let config = otel_container_config(Ipv4Addr::new(172, 21, 0, 1));
+        let log_config = config
+            .1
+            .host_config
+            .as_ref()
+            .unwrap()
+            .log_config
+            .as_ref()
+            .unwrap();
+        assert_eq!(log_config.typ.as_deref(), Some("json-file"));
+        let opts = log_config.config.as_ref().unwrap();
+        assert_eq!(opts.get("max-size").map(String::as_str), Some("20m"));
+        assert_eq!(opts.get("max-file").map(String::as_str), Some("3"));
     }
 
     #[test]
@@ -530,7 +516,7 @@ mod tests {
 
     #[test]
     fn core_container_config_with_otel_adds_mount_and_env() {
-        let ip = Ipv4Addr::new(172, 21, 255, 253);
+        let ip = Ipv4Addr::new(172, 21, 0, 1);
         let config = core_container_config(Some(ip));
         let mounts = mounts_of(&config);
         assert!(
@@ -544,13 +530,16 @@ mod tests {
             "{CORE_SECRET_EXPORT_PATH_ENV}={OTEL_CERTS_MOUNT_TARGET_CORE}"
         )));
         assert!(env.contains(&format!(
+            "{CORE_OTEL_GRPC_COLLECTOR_ENDPOINT_ENV}=http://{ip}:{OTEL_GRPC_PORT}"
+        )));
+        assert!(env.contains(&format!(
             "{CORE_OTEL_HTTP_COLLECTOR_ENDPOINT_ENV}=http://{ip}:{OTEL_HTTP_PORT}"
         )));
     }
 
     #[test]
     fn core_container_config_still_host_network_mode() {
-        let config = core_container_config(Some(Ipv4Addr::new(172, 21, 255, 253)));
+        let config = core_container_config(Some(Ipv4Addr::new(172, 21, 0, 1)));
         assert_eq!(
             config
                 .1
