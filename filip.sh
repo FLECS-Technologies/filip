@@ -37,6 +37,7 @@ print_usage() {
   echo "  -y --yes                           assume yes as answer to all prompts (unattended mode)"
   echo "     --no-banner                     do not print ${ME} banner"
   echo "     --no-welcome                    do not print welcome message"
+  echo "     --offline                       skip connectivity check, version lookup and Docker installation (requires --core-version and --webapp-version)"
   echo "     --core-version <ver>            Install version <ver> of flecs-core instead of the latest version"
   echo "     --webapp-version <ver>          Install version <ver> of flecs-webapp instead of the latest version, or 'none' to skip installing it"
   echo "     --http-port <port>              use <port> for accessing the reverse proxy via http"
@@ -193,6 +194,9 @@ parse_args() {
       --dev)
         DEV_MODE=1
         ;;
+      --offline)
+        OFFLINE=1
+        ;;
       --core-version)
         VERSION_CORE=${2}
         if [ -z "${VERSION_CORE}" ]; then
@@ -314,6 +318,12 @@ parse_args() {
     exit 1
   fi
 
+  if [ "${OFFLINE}" = "1" ] && { [ -z "${VERSION_CORE}" ] || [ -z "${VERSION_WEBAPP}" ]; }; then
+    log_error "arguments --core-version and --webapp-version are required with --offline"
+    print_usage
+    exit 1
+  fi
+
   if [ "${VERSION_WEBAPP}" = "none" ] && [ ${#WEBAPP_ENV_ARGS[@]} -gt 0 ]; then
     log_error "argument --webapp-env cannot be used together with --webapp-version none"
     print_usage
@@ -383,7 +393,7 @@ detect_tools() {
 # quit if required tools are missing
 verify_tools() {
   log_debug "Verifying presence of required basic tools..."
-  if [ -z "${CURL}" ] && [ -z "${WGET}" ]; then
+  if [ "${OFFLINE}" != "1" ] && [ -z "${CURL}" ] && [ -z "${WGET}" ]; then
     log_fatal "Neither curl nor wget found. Please install one before running ${ME}"
   fi
   if [ -z "${SORT}" ]; then
@@ -643,6 +653,9 @@ install_docker_debian() {
 }
 
 install_docker() {
+  if [ "${OFFLINE}" = "1" ]; then
+    log_fatal "Docker is not installed or not running. Please install and start Docker before running ${ME} with --offline"
+  fi
   if [ "${OS_LIKE}" != "debian" ]; then
     log_fatal "Automatic Docker installation is only supported on Debian/Ubuntu-based systems"
   fi
@@ -880,7 +893,11 @@ if [ -z "${FLECS_TESTING}" ]; then
   echo
 
   # make sure device is online
-  check_connectivity
+  if [ "${OFFLINE}" = "1" ]; then
+    log_info "  Internet connectivity... skipped (--offline)"
+  else
+    check_connectivity
+  fi
 
   ensure_docker
   determine_docker_version
