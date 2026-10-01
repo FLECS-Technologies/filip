@@ -8,7 +8,7 @@ on:
 jobs:
   build-and-push:
     name: Build and push dev
-    uses: ./.github/workflows/build-and-push.yml
+    uses: ./.forgejo/workflows/build-and-push.yml
     with:
       channel: dev
     secrets: inherit

@@ -6,7 +6,7 @@ on:
 jobs:
   build-and-push:
     name: Build and push dev (dry-run)
-    uses: ./.github/workflows/build-and-push.yml
+    uses: ./.forgejo/workflows/build-and-push.yml
     with:
       channel: dev
       dry-run: true

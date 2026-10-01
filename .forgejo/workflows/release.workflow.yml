@@ -23,7 +23,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ forgejo.event.repository.default_branch }}
 
       - name: Parse Cargo.toml
         id: parse-cargo-versions
@@ -33,15 +33,15 @@ jobs:
           MINOR_VERSION=$(printf '%s\n' "$VERSION" | cut -d. -f1,2)
           set -- "$MAJOR_VERSION" "$MINOR_VERSION" "$VERSION" \
                  "v${MAJOR_VERSION}" "v${MINOR_VERSION}" "v${VERSION}"
-          printf 'version-list=%s\n' "$(IFS=,; printf '%s' "$*")" >>"$GITHUB_OUTPUT"
+          printf 'version-list=%s\n' "$(IFS=,; printf '%s' "$*")" >>"$FORGEJO_OUTPUT"
 
   build-and-push:
-    name: Build and push latest ${{ github.event.release.prerelease && '(dry-run)' || '' }}
+    name: Build and push latest ${{ forgejo.event.release.prerelease && '(dry-run)' || '' }}
     needs: determine-version-tags
     if: success()
-    uses: ./.github/workflows/build-and-push.yml
+    uses: ./.forgejo/workflows/build-and-push.yml
     with:
-      dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run || github.event.release.prerelease }}
+      dry-run: ${{ forgejo.event_name == 'workflow_dispatch' && inputs.dry-run || forgejo.event.release.prerelease }}
       channel: latest
       versions: ${{ needs.determine-version-tags.outputs.version-list }}
     secrets: inherit
@@ -56,7 +56,7 @@ jobs:
         # v6.0.2
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ forgejo.event.repository.default_branch }}
 
       - name: Install cargo-edit
         run: |
@@ -68,7 +68,7 @@ jobs:
           cd ./entrypoint
           cargo set-version --bump patch
 
-      - name: Commit version bump ${{ github.event.release.prerelease && '(dry-run)' || '' }})
+      - name: Commit version bump ${{ forgejo.event.release.prerelease && '(dry-run)' || '' }})
         run: |
           git config user.name "forgejo-actions[bot]"
           git config user.email "forgejo-actions[bot]@users.noreply.git.flecs.tech"
@@ -76,9 +76,9 @@ jobs:
           git commit -m "Auto-bump version after release"
 
       - name: Push version bump (Release)
-        if: ${{ (github.event_name == 'workflow_dispatch' && !inputs.dry-run) || github.event.release.prerelease == false }}
+        if: ${{ (forgejo.event_name == 'workflow_dispatch' && !inputs.dry-run) || forgejo.event.release.prerelease == false }}
         env:
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          DEFAULT_BRANCH: ${{ forgejo.event.repository.default_branch }}
         run: |
           git push origin "${DEFAULT_BRANCH}"
 
