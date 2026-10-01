@@ -43,7 +43,7 @@ jobs:
     secrets: inherit
 
   release:
-    name: Upload release assets
+    name: Attach release assets
     runs-on: ubuntu-24.04
     needs: verify
     if: ${{ forgejo.event.release.prerelease }}
@@ -51,11 +51,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Upload Release assets
-        uses: https://git.michaelsasser.org/actions/upload-release-assets@a3c4d716a7d72233debf6f1ce321e5c41eb7957c
-        with:
-          assets: |
-            filip.sh
-          create_sha256: "true"
-          token: ${{ secrets.GIT_REPO_WRITE }}
-          tag: ${{ forgejo.ref_name }}
+      - name: Attach assets to release
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ forgejo.event.release.id }}
+          SERVER: ${{ forgejo.server_url }}
+          REPO: ${{ forgejo.repository }}
+        run: |
+          set -eu
+          sha256sum filip.sh | cut -d' ' -f1 >filip.sh.sha256
+          for asset in filip.sh filip.sh.sha256; do
+            curl -fS -X POST \
+              -H "Authorization: token $TOKEN" \
+              -F "attachment=@${asset}" \
+              "${SERVER}/api/v1/repos/${REPO}/releases/${RELEASE_ID}/assets?name=${asset}"
+          done
