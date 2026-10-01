@@ -36,9 +36,9 @@ jobs:
     if: ${{ forgejo.event.release.prerelease }}
     uses: ./.forgejo/workflows/build-and-push.yml
     with:
-      # Builds the images a final release would push, then skips the push.
+      # Builds the exact tags a final release would push, then skips the push.
       channel: latest
-      versions: ${{ needs.verify.outputs.version }},v${{ needs.verify.outputs.version }}
+      versions: ${{ needs.verify.outputs.release_versions }}
       dry-run: true
     secrets: inherit
 

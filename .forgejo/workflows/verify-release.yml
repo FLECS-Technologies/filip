@@ -13,6 +13,9 @@ on:
       version_suffix:
         description: 'Image tag suffix, "" for releases and "-rc[.n]" for pre-releases'
         value: ${{ jobs.verify.outputs.version_suffix }}
+      release_versions:
+        description: 'Image version tags a final release pushes, e.g. "4,4.2,4.2.0,v4,v4.2,v4.2.0"'
+        value: ${{ jobs.verify.outputs.release_versions }}
 
 jobs:
   verify:
@@ -21,6 +24,7 @@ jobs:
     outputs:
       version: ${{ steps.verify.outputs.version }}
       version_suffix: ${{ steps.verify.outputs.version_suffix }}
+      release_versions: ${{ steps.verify.outputs.release_versions }}
 
     steps:
       - name: Checkout
@@ -64,3 +68,9 @@ jobs:
           echo "Tag '${TAG}' matches version '${VERSION}' in entrypoint/Cargo.toml"
           printf 'version=%s\n' "${VERSION}" >>"$FORGEJO_OUTPUT"
           printf 'version_suffix=%s\n' "${SUFFIX}" >>"$FORGEJO_OUTPUT"
+
+          MAJOR_VERSION=$(printf '%s\n' "$VERSION" | cut -d. -f1)
+          MINOR_VERSION=$(printf '%s\n' "$VERSION" | cut -d. -f1,2)
+          set -- "$MAJOR_VERSION" "$MINOR_VERSION" "$VERSION" \
+                 "v${MAJOR_VERSION}" "v${MINOR_VERSION}" "v${VERSION}"
+          printf 'release_versions=%s\n' "$(IFS=,; printf '%s' "$*")" >>"$FORGEJO_OUTPUT"
