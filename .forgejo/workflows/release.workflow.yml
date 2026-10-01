@@ -1,12 +1,12 @@
 name: Release
+run-name: Release ${{ forgejo.ref_name }}
 
+# Pushes the release images (<x>, <x>.<y>, <x>.<y>.<z>, each with and without a
+# leading v, plus latest) for a published final release, bumps the patch version
+# and attaches filip.sh to the release.
+# Pre-releases are handled entirely by prerelease.workflow.yml, which also
+# dry-runs this path so it is proven before the real tag exists.
 on:
-  workflow_dispatch:
-    inputs:
-      dry-run:
-        description: 'Dry run (skip pushing images and version bump)'
-        type: boolean
-        default: true
   release:
     types: [published]
 
@@ -14,21 +14,26 @@ permissions:
   contents: write
 
 jobs:
+  verify:
+    name: Verify release
+    if: ${{ !forgejo.event.release.prerelease }}
+    uses: ./.forgejo/workflows/verify-release.yml
+
   determine-version-tags:
     name: Determine version tags
+    needs: verify
+    # Repeated because Forgejo propagates only failure and cancellation through
+    # needs: a skipped dependency counts as done and would let this job run.
+    if: ${{ !forgejo.event.release.prerelease }}
     runs-on: ubuntu-24.04
     outputs:
-      version-list: ${{ steps.parse-cargo-versions.outputs.version-list }}
+      version-list: ${{ steps.version-list.outputs.version-list }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ forgejo.event.repository.default_branch }}
-
-      - name: Parse Cargo.toml
-        id: parse-cargo-versions
+      - name: Derive version tags
+        id: version-list
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
         run: |
-          VERSION=$(tomlq -r '.package.version' entrypoint/Cargo.toml)
           MAJOR_VERSION=$(printf '%s\n' "$VERSION" | cut -d. -f1)
           MINOR_VERSION=$(printf '%s\n' "$VERSION" | cut -d. -f1,2)
           set -- "$MAJOR_VERSION" "$MINOR_VERSION" "$VERSION" \
@@ -36,12 +41,11 @@ jobs:
           printf 'version-list=%s\n' "$(IFS=,; printf '%s' "$*")" >>"$FORGEJO_OUTPUT"
 
   build-and-push:
-    name: Build and push latest ${{ forgejo.event.release.prerelease && '(dry-run)' || '' }}
-    needs: determine-version-tags
-    if: success()
+    name: Build and push latest
+    needs: [verify, determine-version-tags]
+    if: ${{ !forgejo.event.release.prerelease }}
     uses: ./.forgejo/workflows/build-and-push.yml
     with:
-      dry-run: ${{ forgejo.event_name == 'workflow_dispatch' && inputs.dry-run || forgejo.event.release.prerelease }}
       channel: latest
       versions: ${{ needs.determine-version-tags.outputs.version-list }}
     secrets: inherit
@@ -49,11 +53,10 @@ jobs:
   bump-version:
     name: Bump version
     runs-on: ubuntu-24.04
-    needs: build-and-push
-    if: success()
+    needs: [verify, build-and-push]
+    if: ${{ !forgejo.event.release.prerelease }}
     steps:
       - name: Checkout repository
-        # v6.0.2
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ forgejo.event.repository.default_branch }}
@@ -68,22 +71,24 @@ jobs:
           cd ./entrypoint
           cargo set-version --bump patch
 
-      - name: Commit version bump ${{ forgejo.event.release.prerelease && '(dry-run)' || '' }})
+      - name: Commit version bump
         run: |
           git config user.name "forgejo-actions[bot]"
           git config user.email "forgejo-actions[bot]@users.noreply.git.flecs.tech"
           git add -- ./entrypoint/Cargo.{lock,toml}
           git commit -m "Auto-bump version after release"
 
-      - name: Push version bump (Release)
-        if: ${{ (forgejo.event_name == 'workflow_dispatch' && !inputs.dry-run) || forgejo.event.release.prerelease == false }}
+      - name: Push version bump
         env:
           DEFAULT_BRANCH: ${{ forgejo.event.repository.default_branch }}
         run: |
           git push origin "${DEFAULT_BRANCH}"
 
   release:
+    name: Upload release assets
     runs-on: ubuntu-24.04
+    needs: verify
+    if: ${{ !forgejo.event.release.prerelease }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0

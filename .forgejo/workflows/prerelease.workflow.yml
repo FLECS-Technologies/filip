@@ -1,14 +1,61 @@
 name: Prerelease
+run-name: Prerelease ${{ forgejo.ref_name }}
 
+# Pushes images for a published pre-release, versioned from the tag
+# (<x>.<y>.<z>-rc[.n] and v<x>.<y>.<z>-rc[.n]) plus the moving "rc" channel tag,
+# attaches filip.sh to the pre-release, then dry-runs the release image build so
+# it is proven before the real tag exists.
 on:
   release:
     types: [published]
 
+permissions:
+  contents: write
+
 jobs:
+  verify:
+    name: Verify pre-release
+    if: ${{ forgejo.event.release.prerelease }}
+    uses: ./.forgejo/workflows/verify-release.yml
+
   build-and-push:
     name: Build and push rc
+    needs: verify
+    # Repeated because Forgejo propagates only failure and cancellation through
+    # needs: a skipped dependency counts as done and would let this job run.
+    if: ${{ forgejo.event.release.prerelease }}
     uses: ./.forgejo/workflows/build-and-push.yml
     with:
       channel: rc
-      versions: ${{ forgejo.event.release.tag_name }}
+      versions: ${{ needs.verify.outputs.version }}${{ needs.verify.outputs.version_suffix }},v${{ needs.verify.outputs.version }}${{ needs.verify.outputs.version_suffix }}
     secrets: inherit
+
+  dry-run-release:
+    name: Dry-run the release path
+    needs: verify
+    if: ${{ forgejo.event.release.prerelease }}
+    uses: ./.forgejo/workflows/build-and-push.yml
+    with:
+      # Builds the images a final release would push, then skips the push.
+      channel: latest
+      versions: ${{ needs.verify.outputs.version }},v${{ needs.verify.outputs.version }}
+      dry-run: true
+    secrets: inherit
+
+  release:
+    name: Upload release assets
+    runs-on: ubuntu-24.04
+    needs: verify
+    if: ${{ forgejo.event.release.prerelease }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Upload Release assets
+        uses: https://git.michaelsasser.org/actions/upload-release-assets@a3c4d716a7d72233debf6f1ce321e5c41eb7957c
+        with:
+          assets: |
+            filip.sh
+          create_sha256: "true"
+          token: ${{ secrets.GIT_REPO_WRITE }}
+          tag: ${{ forgejo.ref_name }}

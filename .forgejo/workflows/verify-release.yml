@@ -1,0 +1,66 @@
+name: Verify Release
+
+# Hard gate for the release and prerelease workflows: on any failure nothing is
+# built and nothing is pushed. The tag and the pre-release flag come from the run
+# context rather than inputs, because a caller's with: clause is evaluated while
+# the workflow is expanded, before the event payload is available.
+on:
+  workflow_call:
+    outputs:
+      version:
+        description: 'Base version from entrypoint/Cargo.toml, e.g. "4.2.0"'
+        value: ${{ jobs.verify.outputs.version }}
+      version_suffix:
+        description: 'Image tag suffix, "" for releases and "-rc[.n]" for pre-releases'
+        value: ${{ jobs.verify.outputs.version_suffix }}
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+
+    outputs:
+      version: ${{ steps.verify.outputs.version }}
+      version_suffix: ${{ steps.verify.outputs.version_suffix }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ forgejo.ref }}
+
+      - name: Verify tag against Cargo.toml version
+        id: verify
+        env:
+          TAG: ${{ forgejo.ref_name }}
+          PRERELEASE: ${{ forgejo.event.release.prerelease }}
+        run: |
+          set -eu
+          VERSION=$(tomlq -r '.package.version' entrypoint/Cargo.toml)
+          # Strip an optional leading "v" and compare on the bare version.
+          TAG_VERSION="${TAG#v}"
+
+          if [ "${PRERELEASE}" = "true" ]; then
+            if ! printf '%s\n' "${TAG_VERSION}" \
+              | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+-rc(\.[0-9]+)?$'; then
+              echo "::error::Pre-release tag '${TAG}' must be 'v<x>.<y>.<z>-rc' or 'v<x>.<y>.<z>-rc.<n>'"
+              exit 1
+            fi
+            BASE="${TAG_VERSION%%-rc*}"
+            SUFFIX="${TAG_VERSION#"${BASE}"}"
+          else
+            if ! printf '%s\n' "${TAG_VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "::error::Release tag '${TAG}' must be 'v<x>.<y>.<z>' with no suffix; use a pre-release for '-rc' tags"
+              exit 1
+            fi
+            BASE="${TAG_VERSION}"
+            SUFFIX=""
+          fi
+
+          if [ "${BASE}" != "${VERSION}" ]; then
+            echo "::error::Tag '${TAG}' does not match version '${VERSION}' in entrypoint/Cargo.toml"
+            exit 1
+          fi
+
+          echo "Tag '${TAG}' matches version '${VERSION}' in entrypoint/Cargo.toml"
+          printf 'version=%s\n' "${VERSION}" >>"$FORGEJO_OUTPUT"
+          printf 'version_suffix=%s\n' "${SUFFIX}" >>"$FORGEJO_OUTPUT"
