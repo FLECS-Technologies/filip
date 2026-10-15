@@ -7,6 +7,7 @@ pub const FLOXY_DATA_VOLUME: &str = "flecs-floxy_data";
 pub const FLOXY_CERT_VOLUME: &str = "flecs-floxy_certs";
 pub const OTEL_CERTS_VOLUME: &str = "flecs-otelcol_certs";
 pub const OTEL_LOGS_VOLUME: &str = "flecs-otelcol_logs";
+pub const CORE_FENCE_SHARED_VOLUME: &str = "flecs-core_fence_shared";
 
 async fn create_tmpfs_volume(
     docker_client: &Docker,
@@ -50,6 +51,12 @@ pub async fn create_otel_certs_volume(
     docker_client: &Docker,
 ) -> Result<(), bollard::errors::Error> {
     create_tmpfs_volume(docker_client, OTEL_CERTS_VOLUME, "1m").await
+}
+
+pub async fn create_core_fence_shared_volume(
+    docker_client: &Docker,
+) -> Result<(), bollard::errors::Error> {
+    create_tmpfs_volume(docker_client, CORE_FENCE_SHARED_VOLUME, "1m").await
 }
 
 pub async fn create_otel_logs_volume(docker_client: &Docker) -> Result<(), bollard::errors::Error> {

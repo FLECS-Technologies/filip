@@ -8,7 +8,8 @@ use crate::docker::container::{
 use crate::docker::docker_client;
 use crate::docker::network::network_setup;
 use crate::docker::volume::{
-    create_floxy_data_volume, create_otel_certs_volume, create_otel_logs_volume,
+    create_core_fence_shared_volume, create_floxy_data_volume, create_otel_certs_volume,
+    create_otel_logs_volume,
 };
 use crate::signal::init_signal_handler;
 
@@ -49,6 +50,9 @@ async fn main() -> Result<()> {
 
     info!("Volume creation");
     create_floxy_data_volume(&docker_client).await?;
+    if install_fence {
+        create_core_fence_shared_volume(&docker_client).await?;
+    }
     if otel_install_requested() {
         create_otel_certs_volume(&docker_client).await?;
         create_otel_logs_volume(&docker_client).await?;

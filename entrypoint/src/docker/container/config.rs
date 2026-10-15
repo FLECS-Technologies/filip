@@ -4,12 +4,14 @@ use super::{
 };
 use crate::docker::network::FLECS_NETWORK_NAME;
 use crate::docker::volume::{
-    FLOXY_CERT_VOLUME, FLOXY_DATA_VOLUME, OTEL_CERTS_VOLUME, OTEL_LOGS_VOLUME,
+    CORE_FENCE_SHARED_VOLUME, FLOXY_CERT_VOLUME, FLOXY_DATA_VOLUME, OTEL_CERTS_VOLUME,
+    OTEL_LOGS_VOLUME,
 };
 use bollard::config::{
     ContainerCreateBody, EndpointIpamConfig, EndpointSettings, HostConfig, HostConfigLogConfig,
     Mount, MountTypeEnum, NetworkingConfig, RestartPolicy, RestartPolicyNameEnum,
 };
+use bollard::models::MountVolumeOptions;
 use bollard::query_parameters::CreateContainerOptions;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
@@ -58,6 +60,7 @@ const FENCE_ENV_VAR: &str = "FILIP_FENCE_ENV";
 const FENCE_VERSION_ENV: &str = "VERSION_FENCE";
 const FENCE_VERSION: &str = "latest";
 const INSTALL_FENCE_ENV: &str = "INSTALL_FENCE";
+const CORE_FENCE_SHARED_MOUNT_TARGET: &str = "/run/flecs/auth";
 const FENCE_PORT: u16 = 27000;
 const FENCE_BIND_ADDRESS_ENV: &str = "FENCE_SERVER_BIND_ADDRESS";
 const FENCE_PORT_ENV: &str = "FENCE_SERVER_PORT";
@@ -212,9 +215,26 @@ pub fn floxy_container_config(
     )
 }
 
+/// Shares data between core and fence
+fn core_fence_shared_mount() -> Mount {
+    Mount {
+        typ: Some(MountTypeEnum::VOLUME),
+        source: Some(CORE_FENCE_SHARED_VOLUME.to_string()),
+        target: Some(CORE_FENCE_SHARED_MOUNT_TARGET.to_string()),
+        // Docker would otherwise copy the content of the image at the mount target into the empty
+        // volume, where it would be mixed with the content written by the other container
+        volume_options: Some(MountVolumeOptions {
+            no_copy: Some(true),
+            ..MountVolumeOptions::default()
+        }),
+        ..Mount::default()
+    }
+}
+
 /// `otelcol_ip` is the IP the otel-collector listens on (the gateway of the
 /// `flecs` bridge network), or `None` if `--install-otel-collector` was not
-/// passed. `fence_ip` is the IP fence listens on, or `None` if fence is not installed.
+/// passed. `fence_ip` is the IP fence listens on, or `None` if fence is not installed, in which
+/// case the volume shared with fence is not mounted.
 pub fn core_container_config(
     otelcol_ip: Option<Ipv4Addr>,
     fence_ip: Option<Ipv4Addr>,
@@ -238,6 +258,7 @@ pub fn core_container_config(
     ];
     let mut env = Vec::new();
     if let Some(fence_ip) = fence_ip {
+        mounts.push(core_fence_shared_mount());
         let fence_url = format!("http://{fence_ip}:{FENCE_PORT}");
         env.push(format!("{CORE_AUTH_KIND_ENV}=oauth"));
         env.push(format!("{CORE_ISSUER_URL_ENV}={fence_url}/meta/issuer"));
@@ -410,12 +431,15 @@ pub fn fence_container_config(bind_ip: Ipv4Addr) -> ContainerConfig {
             hostname: Some(FENCE_CONTAINER_NAME.to_string()),
             host_config: Some(HostConfig {
                 network_mode: Some("host".to_string()),
-                mounts: Some(vec![Mount {
-                    typ: Some(MountTypeEnum::VOLUME),
-                    source: Some(FENCE_VOLUME.to_string()),
-                    target: Some("/var/local/lib/fence".to_string()),
-                    ..Mount::default()
-                }]),
+                mounts: Some(vec![
+                    Mount {
+                        typ: Some(MountTypeEnum::VOLUME),
+                        source: Some(FENCE_VOLUME.to_string()),
+                        target: Some("/var/local/lib/fence".to_string()),
+                        ..Mount::default()
+                    },
+                    core_fence_shared_mount(),
+                ]),
                 restart_policy: Some(restart_on_failure()),
                 ..HostConfig::default()
             }),
@@ -640,6 +664,32 @@ mod tests {
         );
     }
 
+    fn is_core_fence_shared_mount(mount: &Mount) -> bool {
+        mount.source.as_deref() == Some(CORE_FENCE_SHARED_VOLUME)
+            && mount.target.as_deref() == Some(CORE_FENCE_SHARED_MOUNT_TARGET)
+            && mount
+                .volume_options
+                .as_ref()
+                .and_then(|options| options.no_copy)
+                == Some(true)
+    }
+
+    #[test]
+    fn core_container_config_without_fence_has_no_core_fence_shared_volume() {
+        let config = core_container_config(None, None);
+        assert!(
+            !mounts_of(&config)
+                .iter()
+                .any(|m| m.source.as_deref() == Some(CORE_FENCE_SHARED_VOLUME))
+        );
+    }
+
+    #[test]
+    fn core_container_config_with_fence_mounts_core_fence_shared_volume() {
+        let config = core_container_config(None, Some(Ipv4Addr::new(172, 21, 0, 1)));
+        assert!(mounts_of(&config).iter().any(is_core_fence_shared_mount));
+    }
+
     #[test]
     fn core_container_config_with_fence_uses_fence_as_auth_provider() {
         let config = core_container_config(None, Some(Ipv4Addr::new(172, 21, 0, 1)));
@@ -653,6 +703,12 @@ mod tests {
         ] {
             assert!(env.contains(&expected.to_string()), "missing {expected}");
         }
+    }
+
+    #[test]
+    fn fence_container_config_mounts_core_fence_shared_volume() {
+        let config = fence_container_config(Ipv4Addr::new(172, 21, 0, 1));
+        assert!(mounts_of(&config).iter().any(is_core_fence_shared_mount));
     }
 
     #[test]
