@@ -61,6 +61,11 @@ const FENCE_BIND_ADDRESS_ENV: &str = "FENCE_SERVER_BIND_ADDRESS";
 const FENCE_PORT_ENV: &str = "FENCE_SERVER_PORT";
 const FLOXY_FENCE_IPV4_ENV: &str = "FLOXY_FENCE_IPV4";
 const FLOXY_FENCE_HTTP_PORT_ENV: &str = "FLOXY_FENCE_HTTP_PORT";
+const CORE_AUTH_KIND_ENV: &str = "FLECS_CORE_AUTH_KIND";
+const CORE_ISSUER_URL_ENV: &str = "FLECS_CORE_ISSUER_URL";
+const CORE_JWK_URL_ENV: &str = "FLECS_CORE_JWK_URL";
+const CORE_AUTHORIZE_URL_ENV: &str = "FLECS_CORE_AUTHORIZE_URL";
+const CORE_TOKEN_URL_ENV: &str = "FLECS_CORE_TOKEN_URL";
 
 /// Whether otel-collector should be installed
 /// `INSTALL_OTEL_COLLECTOR=1` => true else false.
@@ -201,8 +206,11 @@ pub fn floxy_container_config(
 
 /// `otelcol_ip` is the IP the otel-collector listens on (the gateway of the
 /// `flecs` bridge network), or `None` if `--install-otel-collector` was not
-/// passed.
-pub fn core_container_config(otelcol_ip: Option<Ipv4Addr>) -> ContainerConfig {
+/// passed. `fence_ip` is the IP fence listens on, or `None` if fence is not installed.
+pub fn core_container_config(
+    otelcol_ip: Option<Ipv4Addr>,
+    fence_ip: Option<Ipv4Addr>,
+) -> ContainerConfig {
     let version = std::env::var(CORE_VERSION_ENV);
     let version = version.as_deref().unwrap_or(CORE_VERSION);
     let mut mounts = vec![
@@ -221,6 +229,16 @@ pub fn core_container_config(otelcol_ip: Option<Ipv4Addr>) -> ContainerConfig {
         },
     ];
     let mut env = Vec::new();
+    if let Some(fence_ip) = fence_ip {
+        let fence_url = format!("http://{fence_ip}:{FENCE_PORT}");
+        env.push(format!("{CORE_AUTH_KIND_ENV}=oauth"));
+        env.push(format!("{CORE_ISSUER_URL_ENV}={fence_url}/meta/issuer"));
+        env.push(format!("{CORE_JWK_URL_ENV}={fence_url}/meta/jwk"));
+        env.push(format!(
+            "{CORE_AUTHORIZE_URL_ENV}={fence_url}/oauth/authorize"
+        ));
+        env.push(format!("{CORE_TOKEN_URL_ENV}={fence_url}/oauth/token"));
+    }
     if let Some(otelcol_ip) = otelcol_ip {
         mounts.push(Mount {
             typ: Some(MountTypeEnum::VOLUME),
@@ -566,7 +584,7 @@ mod tests {
 
     #[test]
     fn core_container_config_without_otel_has_no_otel_mount_or_env() {
-        let config = core_container_config(None);
+        let config = core_container_config(None, None);
         let mounts = mounts_of(&config);
         assert!(
             !mounts
@@ -579,7 +597,7 @@ mod tests {
     #[test]
     fn core_container_config_with_otel_adds_mount_and_env() {
         let ip = Ipv4Addr::new(172, 21, 0, 1);
-        let config = core_container_config(Some(ip));
+        let config = core_container_config(Some(ip), None);
         let mounts = mounts_of(&config);
         assert!(
             mounts
@@ -601,7 +619,7 @@ mod tests {
 
     #[test]
     fn core_container_config_still_host_network_mode() {
-        let config = core_container_config(Some(Ipv4Addr::new(172, 21, 0, 1)));
+        let config = core_container_config(Some(Ipv4Addr::new(172, 21, 0, 1)), None);
         assert_eq!(
             config
                 .1
@@ -612,6 +630,21 @@ mod tests {
                 .as_deref(),
             Some("host")
         );
+    }
+
+    #[test]
+    fn core_container_config_with_fence_uses_fence_as_auth_provider() {
+        let config = core_container_config(None, Some(Ipv4Addr::new(172, 21, 0, 1)));
+        let env = config.1.env.unwrap();
+        for expected in [
+            "FLECS_CORE_AUTH_KIND=oauth",
+            "FLECS_CORE_ISSUER_URL=http://172.21.0.1:27000/meta/issuer",
+            "FLECS_CORE_JWK_URL=http://172.21.0.1:27000/meta/jwk",
+            "FLECS_CORE_AUTHORIZE_URL=http://172.21.0.1:27000/oauth/authorize",
+            "FLECS_CORE_TOKEN_URL=http://172.21.0.1:27000/oauth/token",
+        ] {
+            assert!(env.contains(&expected.to_string()), "missing {expected}");
+        }
     }
 
     #[test]
@@ -638,7 +671,7 @@ mod tests {
         let ip = Ipv4Addr::new(172, 21, 0, 1);
         for config in [
             floxy_container_config(80, 443, ip),
-            core_container_config(None),
+            core_container_config(None, None),
             webapp_container_config(Ipv4Addr::new(172, 21, 255, 254), ip),
             otel_container_config(ip),
             fence_container_config(ip),

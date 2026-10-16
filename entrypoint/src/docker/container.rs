@@ -123,7 +123,10 @@ pub async fn create_containers(
     }
 
     // core
-    let config = core_container_config(install_otel.then_some(gateway));
+    let config = core_container_config(
+        install_otel.then_some(gateway),
+        install_fence.then_some(gateway),
+    );
     re_create_container(docker_client, config).await?;
 
     // fence
