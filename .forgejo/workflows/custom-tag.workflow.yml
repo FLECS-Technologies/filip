@@ -1,0 +1,35 @@
+name: Custom Tag
+run-name: Custom Tag ${{ forgejo.event.inputs.tag }} @ ${{ forgejo.ref_name }}
+
+# Builds the branch this workflow is started on
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to push (images are pushed as <tag> and <tag>-debug)"
+        required: true
+        type: string
+
+jobs:
+  params:
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.params.outputs.tag }}
+    steps:
+      - id: params
+        env:
+          TAG: ${{ inputs.tag || forgejo.event.inputs.tag }}
+        run: |
+          test -n "$TAG" || { echo "::error::input 'tag' is empty"; exit 1; }
+          echo "$TAG" | grep -Eq '^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$' || { echo "::error::'$TAG' is no valid image tag"; exit 1; }
+          case "$TAG" in
+            latest|dev|rc|cache) echo "::error::tag '$TAG' is managed by other workflows"; exit 1 ;;
+          esac
+          echo "tag=$TAG" >>"$FORGEJO_OUTPUT"
+
+  build-and-push:
+    needs: params
+    uses: ./.forgejo/workflows/build-and-push.yml
+    with:
+      channel: ${{ needs.params.outputs.tag }}
+    secrets: inherit
