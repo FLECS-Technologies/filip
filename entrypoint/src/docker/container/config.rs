@@ -56,6 +56,11 @@ const FENCE_ENV_VAR: &str = "FILIP_FENCE_ENV";
 const FENCE_VERSION_ENV: &str = "VERSION_FENCE";
 const FENCE_VERSION: &str = "latest";
 const INSTALL_FENCE_ENV: &str = "INSTALL_FENCE";
+const FENCE_PORT: u16 = 27000;
+const FENCE_BIND_ADDRESS_ENV: &str = "FENCE_SERVER_BIND_ADDRESS";
+const FENCE_PORT_ENV: &str = "FENCE_SERVER_PORT";
+const FLOXY_FENCE_IPV4_ENV: &str = "FLOXY_FENCE_IPV4";
+const FLOXY_FENCE_HTTP_PORT_ENV: &str = "FLOXY_FENCE_HTTP_PORT";
 
 /// Whether otel-collector should be installed
 /// `INSTALL_OTEL_COLLECTOR=1` => true else false.
@@ -155,6 +160,8 @@ pub fn floxy_container_config(
         format!("FLOXY_HTTP_PORT={http_port}"),
         format!("FLOXY_HTTPS_PORT={https_port}"),
         format!("FLOXY_FLECS_GATEWAY={gateway}"),
+        format!("{FLOXY_FENCE_IPV4_ENV}={gateway}"),
+        format!("{FLOXY_FENCE_HTTP_PORT_ENV}={FENCE_PORT}"),
     ];
     if let Ok(pairs) = std::env::var(FLOXY_ENV_VAR) {
         env.extend(parse_env_pairs(&pairs));
@@ -353,13 +360,20 @@ pub fn webapp_container_config(ip: Ipv4Addr, gateway: Ipv4Addr) -> ContainerConf
     )
 }
 
-pub fn fence_container_config(ip: Ipv4Addr) -> ContainerConfig {
+/// Fence runs in host network mode and binds to `bind_ip` only, which is the gateway of the
+/// `flecs` bridge network. Like the otel-collector, containers on any bridge network reach it
+/// via their own gateway without joining `flecs`, while it stays unreachable from outside the
+/// host. External clients reach it through floxy.
+pub fn fence_container_config(bind_ip: Ipv4Addr) -> ContainerConfig {
     let version = std::env::var(FENCE_VERSION_ENV);
     let version = version.as_deref().unwrap_or(FENCE_VERSION);
-    let env = std::env::var(FENCE_ENV_VAR)
-        .ok()
-        .map(|pairs| parse_env_pairs(&pairs))
-        .filter(|v: &Vec<String>| !v.is_empty());
+    let mut env = vec![
+        format!("{FENCE_BIND_ADDRESS_ENV}={bind_ip}"),
+        format!("{FENCE_PORT_ENV}={FENCE_PORT}"),
+    ];
+    if let Ok(pairs) = std::env::var(FENCE_ENV_VAR) {
+        env.extend(parse_env_pairs(&pairs));
+    }
     (
         CreateContainerOptions {
             name: Some(FENCE_CONTAINER_NAME.to_string()),
@@ -369,6 +383,7 @@ pub fn fence_container_config(ip: Ipv4Addr) -> ContainerConfig {
             image: Some(format!("{CONTAINER_REGISTRY}/{FENCE_IMAGE}:{version}")),
             hostname: Some(FENCE_CONTAINER_NAME.to_string()),
             host_config: Some(HostConfig {
+                network_mode: Some("host".to_string()),
                 mounts: Some(vec![Mount {
                     typ: Some(MountTypeEnum::VOLUME),
                     source: Some(FENCE_VOLUME.to_string()),
@@ -378,19 +393,7 @@ pub fn fence_container_config(ip: Ipv4Addr) -> ContainerConfig {
                 restart_policy: Some(restart_on_failure()),
                 ..HostConfig::default()
             }),
-            env,
-            networking_config: Some(NetworkingConfig {
-                endpoints_config: Some(HashMap::from([(
-                    FLECS_NETWORK_NAME.to_string(),
-                    EndpointSettings {
-                        ipam_config: Some(EndpointIpamConfig {
-                            ipv4_address: Some(ip.to_string()),
-                            ..EndpointIpamConfig::default()
-                        }),
-                        ..EndpointSettings::default()
-                    },
-                )])),
-            }),
+            env: Some(env),
             ..ContainerCreateBody::default()
         },
     )
@@ -609,6 +612,25 @@ mod tests {
                 .as_deref(),
             Some("host")
         );
+    }
+
+    #[test]
+    fn fence_container_config_uses_host_network_and_binds_to_given_ip() {
+        let config = fence_container_config(Ipv4Addr::new(172, 21, 0, 1));
+        let host_config = config.1.host_config.as_ref().unwrap();
+        assert_eq!(host_config.network_mode.as_deref(), Some("host"));
+        assert!(config.1.networking_config.is_none());
+        let env = config.1.env.as_ref().unwrap();
+        assert!(env.contains(&format!("{FENCE_BIND_ADDRESS_ENV}=172.21.0.1")));
+        assert!(env.contains(&format!("{FENCE_PORT_ENV}={FENCE_PORT}")));
+    }
+
+    #[test]
+    fn floxy_container_config_routes_to_fence_on_gateway() {
+        let config = floxy_container_config(80, 443, Ipv4Addr::new(172, 21, 0, 1));
+        let env = config.1.env.as_ref().unwrap();
+        assert!(env.contains(&format!("{FLOXY_FENCE_IPV4_ENV}=172.21.0.1")));
+        assert!(env.contains(&format!("{FLOXY_FENCE_HTTP_PORT_ENV}={FENCE_PORT}")));
     }
 
     #[test]

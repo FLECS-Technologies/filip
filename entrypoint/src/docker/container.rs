@@ -111,7 +111,6 @@ pub async fn create_containers(
     let [first_octet, second_octet, _, _] = gateway.octets();
     let webapp_ip = Ipv4Addr::new(first_octet, second_octet, 255, 254);
     let install_otel = otel_install_requested();
-    let fence_ip: Ipv4Addr = Ipv4Addr::new(first_octet, second_octet, 255, 253);
 
     // floxy
     let config = floxy_container_config(free_http_port, free_https_port, gateway);
@@ -129,7 +128,7 @@ pub async fn create_containers(
 
     // fence
     if install_fence {
-        let config: ContainerConfig = fence_container_config(fence_ip);
+        let config: ContainerConfig = fence_container_config(gateway);
         re_create_container(docker_client, config).await?;
     } else {
         stop_container(docker_client, FENCE_CONTAINER_NAME).await?;
