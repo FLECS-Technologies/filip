@@ -102,6 +102,14 @@ fn parse_env_pairs(s: &str) -> Vec<String> {
     result
 }
 
+/// Restart the container whenever it exits with an error, without a retry limit
+fn restart_on_failure() -> RestartPolicy {
+    RestartPolicy {
+        maximum_retry_count: Some(0),
+        name: Some(RestartPolicyNameEnum::ON_FAILURE),
+    }
+}
+
 fn docker_socket_mount() -> Mount {
     Mount {
         typ: Some(MountTypeEnum::BIND),
@@ -175,10 +183,7 @@ pub fn floxy_container_config(
                         ..Mount::default()
                     },
                 ]),
-                restart_policy: Some(RestartPolicy {
-                    maximum_retry_count: Some(0),
-                    name: Some(RestartPolicyNameEnum::ON_FAILURE),
-                }),
+                restart_policy: Some(restart_on_failure()),
                 ..HostConfig::default()
             }),
             env: Some(env),
@@ -241,6 +246,7 @@ pub fn core_container_config(otelcol_ip: Option<Ipv4Addr>) -> ContainerConfig {
             host_config: Some(HostConfig {
                 network_mode: Some("host".to_string()),
                 mounts: Some(mounts),
+                restart_policy: Some(restart_on_failure()),
                 ..HostConfig::default()
             }),
             env,
@@ -284,10 +290,7 @@ pub fn otel_container_config(bind_ip: Ipv4Addr) -> ContainerConfig {
                     otel_docker_socket_mount(),
                     otel_hostfs_mount(),
                 ]),
-                restart_policy: Some(RestartPolicy {
-                    maximum_retry_count: Some(0),
-                    name: Some(RestartPolicyNameEnum::ON_FAILURE),
-                }),
+                restart_policy: Some(restart_on_failure()),
                 // The debug exporter writes to stdout, which Docker's json-file
                 // driver captures with no size limit by default. Caps log size
                 // at ~60MB.
@@ -329,6 +332,7 @@ pub fn webapp_container_config(ip: Ipv4Addr, gateway: Ipv4Addr) -> ContainerConf
             image: Some(format!("{CONTAINER_REGISTRY}/{WEBAPP_IMAGE}:{tag}")),
             host_config: Some(HostConfig {
                 extra_hosts: Some(vec![format!("flecs-floxy:{gateway}")]),
+                restart_policy: Some(restart_on_failure()),
                 ..HostConfig::default()
             }),
             env,
@@ -371,6 +375,7 @@ pub fn fence_container_config(ip: Ipv4Addr) -> ContainerConfig {
                     target: Some("/var/local/lib/fence".to_string()),
                     ..Mount::default()
                 }]),
+                restart_policy: Some(restart_on_failure()),
                 ..HostConfig::default()
             }),
             env,
@@ -604,5 +609,24 @@ mod tests {
                 .as_deref(),
             Some("host")
         );
+    }
+
+    #[test]
+    fn system_containers_restart_on_failure() {
+        let ip = Ipv4Addr::new(172, 21, 0, 1);
+        for config in [
+            floxy_container_config(80, 443, ip),
+            core_container_config(None),
+            webapp_container_config(Ipv4Addr::new(172, 21, 255, 254), ip),
+            otel_container_config(ip),
+            fence_container_config(ip),
+        ] {
+            assert_eq!(
+                config.1.host_config.unwrap().restart_policy,
+                Some(restart_on_failure()),
+                "{:?}",
+                config.0.name
+            );
+        }
     }
 }
