@@ -14,6 +14,8 @@ use bollard::query_parameters::CreateContainerOptions;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
 
+// docs/manual.md describes these containers as Compose files. Update it together
+// with any change to images, mounts, environment variables or networking here.
 pub type ContainerConfig = (CreateContainerOptions, ContainerCreateBody);
 const CONTAINER_REGISTRY: &str = "cr.flecs.tech";
 const CORE_IMAGE: &str = "flecs/flecs-core";
