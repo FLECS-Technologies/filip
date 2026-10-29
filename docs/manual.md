@@ -237,7 +237,6 @@ Your data is kept in the `flecsd` volume.
 
     ```bash
     docker volume rm flecsd flecs-floxy_certs flecs-floxy_data
-    docker network rm flecs
     ```
 
     If you installed the OpenTelemetry Collector, also remove `flecs-otelcol_certs` and `flecs-otelcol_logs`.
