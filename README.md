@@ -1,5 +1,13 @@
 # flecs
 
+The user documentation lives in [docs/](docs/) and is published at
+<https://docs.flecs.tech/flecs-core/installation/>. Update it together with any
+change to options, defaults or behaviour. The Compose files in
+[docs/manual.md](docs/manual.md) mirror the container setup in
+[config.rs](entrypoint/src/docker/container/config.rs), so update them together.
+To preview the docs locally, see
+[Building the docs locally](https://git.flecs.tech/flecs/product-docs#building-the-docs-locally).
+
 ## Quickstart
 
 ### Automatically with script
