@@ -77,7 +77,7 @@ Then run the `docker run` command from [Install FLECS](#install-flecs) with the 
 ## Uninstall FLECS
 
 !!! info
-    Uninstalling FLECS does not remove the apps you installed with FLECS. Uninstall your apps in the FLECS WebApp first.
+    Uninstalling FLECS stops and removes the containers of your apps, but keeps their data. If you install FLECS again, your apps are back with their data. To remove your apps completely, uninstall them in the FLECS WebApp first.
 
 1. Stop and remove the FILiP container. FILiP stops and removes all other FLECS containers before it exits:
 
@@ -93,6 +93,17 @@ Then run the `docker run` command from [Install FLECS](#install-flecs) with the 
     docker network rm flecs
     ```
 
-    If you installed the OpenTelemetry Collector, also remove `flecs-otelcol_certs` and `flecs-otelcol_logs`.
+    Depending on the FLECS version and your setup, more FLECS volumes exist:
+
+    * `flecs-otelcol_certs` and `flecs-otelcol_logs`, if you installed the OpenTelemetry Collector.
+    * `flecs-fence`, which holds your users, with FLECS Core 5.6.0 and later.
+    * One volume per volume of each app, named `flecs-<instance ID>-<name>`. With FLECS Core 5.5.0, this includes the volume `flecs-<instance ID>-fence`, which holds your users.
+
+    To remove them as well, list all remaining volumes whose names start with `flecs`. Check the list, then remove them:
+
+    ```bash
+    docker volume ls --filter name=^flecs
+    docker volume ls --quiet --filter name=^flecs | xargs -r docker volume rm
+    ```
 
 3. Optionally, remove the Docker images of FLECS and your apps with `docker image ls` and `docker image rm <image>`.

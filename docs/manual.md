@@ -225,7 +225,7 @@ Your data is kept in the `flecsd` volume.
 ## Uninstall FLECS
 
 !!! info
-    Uninstalling FLECS does not remove the apps you installed with FLECS. Uninstall your apps in the FLECS WebApp first.
+    Uninstalling FLECS stops and removes the containers of your apps, but keeps their data. If you install FLECS again, your apps are back with their data. To remove your apps completely, uninstall them in the FLECS WebApp first.
 
 1. Stop and remove the FLECS containers. In the directory of your `docker-compose.yml`, run:
 
@@ -239,6 +239,17 @@ Your data is kept in the `flecsd` volume.
     docker volume rm flecsd flecs-floxy_certs flecs-floxy_data
     ```
 
-    If you installed the OpenTelemetry Collector, also remove `flecs-otelcol_certs` and `flecs-otelcol_logs`.
+    Depending on the FLECS version and your setup, more FLECS volumes exist:
+
+    * `flecs-otelcol_certs` and `flecs-otelcol_logs`, if you installed the OpenTelemetry Collector.
+    * `flecs-fence`, which holds your users, with FLECS Core 5.6.0 and later.
+    * One volume per volume of each app, named `flecs-<instance ID>-<name>`. With FLECS Core 5.5.0, this includes the volume `flecs-<instance ID>-fence`, which holds your users.
+
+    To remove them as well, list all remaining volumes whose names start with `flecs`. Check the list, then remove them:
+
+    ```bash
+    docker volume ls --filter name=^flecs
+    docker volume ls --quiet --filter name=^flecs | xargs -r docker volume rm
+    ```
 
 3. Optionally, remove the Docker images of FLECS and your apps with `docker image ls` and `docker image rm <image>`.
