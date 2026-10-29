@@ -21,7 +21,7 @@ The installer script is the recommended way to install FLECS Core. It installs D
 | Debian, Raspberry Pi OS | 11 (bullseye), end of life | Install Docker before running the script |
 | Ubuntu | 20.04, 22.04, 24.04, 25.04, 26.04 | Installed automatically |
 | Ubuntu | 23.04, end of life | Install Docker before running the script |
-| Fedora | 37, 38 | Install Docker before running the script |
+| Fedora | 37, 38 | Install Docker CE before running the script |
 | Red Hat Enterprise Linux | 8.8, 9.2 | Install Docker before running the script |
 | Arch Linux | Rolling release | Install Docker before running the script |
 
@@ -32,6 +32,8 @@ The installer script is the recommended way to install FLECS Core. It installs D
 FLECS requires Docker 20.10.10 or later with API version 1.41 or later. Podman is not supported.
 
 When the script installs Docker, it uses the `docker.io` package of your distribution.
+
+On Fedora, install Docker CE following the [Docker installation guide](https://docs.docker.com/engine/install/fedora/). Fedora's own `moby-engine` package does not work with FLECS while SELinux is enabled: SELinux blocks FILiP's access to the Docker socket, and FILiP restarts repeatedly.
 
 ## Install FLECS
 
