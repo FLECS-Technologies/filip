@@ -105,7 +105,7 @@ This creates the bundle in a folder `flecs` in the current directory:
 ```bash
 mkdir -p flecs
 
-docker save -o flecs/flecs-images.tar "${IMAGES[@]}"
+docker save --platform "${PLATFORM}" -o flecs/flecs-images.tar "${IMAGES[@]}"
 curl -fsSL https://install.flecs.tech -o flecs/filip.sh
 
 # Write versions and whitelabel down so the offline side installs exactly these
@@ -115,7 +115,7 @@ cat flecs/versions.env
 ```
 
 !!! info
-    If `docker save` fails with an error about missing content or platforms (this can happen with Docker's containerd image store), add `--platform "${PLATFORM}"` to the `docker save` command. This option needs Docker 28 or newer.
+    `--platform` makes sure the bundle contains only the images for your device. Without it, Docker's containerd image store saves every platform that is present locally, which can double the size of the bundle. The option needs Docker 28 or newer. With older Docker, leave it out.
 
 ### 4. Bring the bundle to the offline device
 
