@@ -24,7 +24,7 @@ With Docker Compose or Docker, set the `VERSION_CORE` and `VERSION_WEBAPP` envir
 
 ## Versions before 5.2.0
 
-This installer supports FLECS Core 5.2.0 and later. To install an older version, use the previous installer and set both versions:
+This installer supports FLECS Core 5.2.0 and later. To install an older version, use the previous installer and always set both versions. Without them, the previous installer fails, because it can no longer look up the latest versions:
 
 ```bash
 curl -fsSL install-old.flecs.tech | bash -s -- --core-version 3.6.2-hedgehog --webapp-version 3.6.0-hedgehog
