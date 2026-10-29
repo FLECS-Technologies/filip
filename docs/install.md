@@ -17,7 +17,8 @@ The installer script is the recommended way to install FLECS Core. It installs D
 
 | Operating system | Versions | Docker |
 |---|---|---|
-| Debian, Raspberry Pi OS | 11 (bullseye), 12 (bookworm), 13 (trixie) | Installed automatically |
+| Debian, Raspberry Pi OS | 12 (bookworm), 13 (trixie) | Installed automatically |
+| Debian, Raspberry Pi OS | 11 (bullseye), end of life | Install Docker before running the script |
 | Ubuntu | 20.04, 22.04, 23.04, 24.04, 25.04, 26.04 | Installed automatically |
 | Fedora | 37, 38 | Install Docker before running the script |
 | Red Hat Enterprise Linux | 8.8, 9.2 | Install Docker before running the script |
