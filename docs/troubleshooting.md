@@ -59,6 +59,10 @@ The OpenTelemetry Collector requires Docker 25 or later. Update Docker, then run
 
 You requested the OpenTelemetry Collector with an older FLECS Core version. Install FLECS Core 5.5.0 or later, or install FLECS without `--install-otel-collector`.
 
+### "SELinux is enforcing and enabled in the Docker daemon"
+
+SELinux would block FLECS from accessing Docker. This happens with Fedora's own Docker package `moby-engine`. Remove it and install Docker CE following the [Docker installation guide](https://docs.docker.com/engine/install/fedora/). Then run the script again.
+
 ### "Podman is currently unsupported"
 
 FLECS requires Docker. Install Docker instead of Podman, or contact [info@flecs.tech](mailto:info@flecs.tech) if you require Podman support.

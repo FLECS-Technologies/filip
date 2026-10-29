@@ -33,7 +33,7 @@ FLECS requires Docker 20.10.10 or later with API version 1.41 or later. Podman i
 
 When the script installs Docker, it uses the `docker.io` package of your distribution.
 
-On Fedora, install Docker CE following the [Docker installation guide](https://docs.docker.com/engine/install/fedora/). Fedora's own `moby-engine` package does not work with FLECS while SELinux is enabled: SELinux blocks FILiP's access to the Docker socket, and FILiP restarts repeatedly.
+On Fedora, install Docker CE following the [Docker installation guide](https://docs.docker.com/engine/install/fedora/). Fedora's own `moby-engine` package does not work with FLECS while SELinux is enabled: SELinux blocks FILiP's access to the Docker socket, and FILiP restarts repeatedly. The installer script detects this and stops.
 
 ## Install FLECS
 

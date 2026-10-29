@@ -670,6 +670,21 @@ verify_docker_version() {
   fi
 }
 
+# FILiP cannot access the Docker socket if SELinux is enforcing and the Docker
+# daemon has SELinux support enabled, e.g. with Fedora's moby-engine package
+verify_docker_selinux() {
+  if [ ! -r /sys/fs/selinux/enforce ] || [ "$(< /sys/fs/selinux/enforce)" != "1" ]; then
+    return 0
+  fi
+
+  local SECURITY_OPTIONS=$(${DOCKER} info --format '{{json .SecurityOptions}}' 2>/dev/null)
+  if [[ "${SECURITY_OPTIONS}" == *"name=selinux"* ]]; then
+    log_error "SELinux is enforcing and enabled in the Docker daemon, which prevents FLECS from accessing Docker"
+    log_error "This is the case with Fedora's moby-engine package"
+    log_fatal "Please install Docker CE instead: https://docs.docker.com/engine/install/"
+  fi
+}
+
 install_docker_debian() {
   if ! apt_update; then
     log_fatal "apt_update failed in install_docker"
@@ -995,6 +1010,7 @@ if [ -z "${FLECS_TESTING}" ]; then
   ensure_docker
   determine_docker_version
   verify_docker_version
+  verify_docker_selinux
 
   # query latest FLECS version online
   determine_latest_version
