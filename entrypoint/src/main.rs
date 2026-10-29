@@ -1,7 +1,7 @@
 mod docker;
 mod logging;
 mod signal;
-use crate::docker::container::config::otel_install_requested;
+use crate::docker::container::config::{otel_export_destination_set, otel_install_requested};
 use crate::docker::container::{
     create_containers, install_fence, remove_containers, start_containers, stop_containers,
 };
@@ -22,6 +22,8 @@ enum Error {
     NetworkSetup(#[from] docker::network::NetworkSetupError),
     #[error(transparent)]
     CreateContainer(#[from] docker::container::CreateContainerError),
+    #[error("OTEL_EXPORT_DESTINATION is required with INSTALL_OTEL_COLLECTOR=1")]
+    MissingOtelExportDestination,
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -31,6 +33,12 @@ async fn main() -> Result<()> {
     let stop_signal = init_signal_handler()?;
     let docker_client = docker_client()?;
     let install_fence = install_fence();
+
+    if otel_install_requested() && !otel_export_destination_set() {
+        let error = Error::MissingOtelExportDestination;
+        error!("{error}");
+        return Err(error);
+    }
 
     info!("Cleanup of any leftover containers");
     stop_containers(&docker_client).await?;

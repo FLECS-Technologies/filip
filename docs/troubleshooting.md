@@ -79,6 +79,10 @@ These errors appear in the log of the FILiP container.
 
 The log shows `Error: NetworkSetup(PortBusy("http"))` or `Error: NetworkSetup(PortBusy("https"))`. All default ports are in use by other programs. Choose free ports with `--http-port` and `--https-port`. See [Ports](options.md#ports).
 
+### "OTEL_EXPORT_DESTINATION is required with INSTALL_OTEL_COLLECTOR=1"
+
+You set `INSTALL_OTEL_COLLECTOR=1` without `OTEL_EXPORT_DESTINATION`. FILiP stops without starting FLECS. Set `OTEL_EXPORT_DESTINATION` to the URL of your OTLP receiver, or remove `INSTALL_OTEL_COLLECTOR`. See [OpenTelemetry Collector](options.md#opentelemetry-collector).
+
 ### "No free subnet found for network flecs"
 
 All subnets from `172.21.0.0/16` to `172.31.0.0/16` overlap with networks on your device. Free one of these subnets, or create the `flecs` network yourself with a free `/16` subnet before you start FLECS. FILiP reuses an existing `flecs` network:

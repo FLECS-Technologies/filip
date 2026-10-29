@@ -33,7 +33,7 @@ Set `VERSION_CORE` and `VERSION_WEBAPP` to the versions you want to install. See
 
 ### With the OpenTelemetry Collector
 
-Add two `--env` options and set `OTEL_EXPORT_DESTINATION` to the URL of your OTLP receiver:
+Add two `--env` options and set `OTEL_EXPORT_DESTINATION` to the URL of your OTLP receiver. Both are required. Without `OTEL_EXPORT_DESTINATION`, FILiP doesn't start FLECS:
 
 ```bash
 docker run --detach \

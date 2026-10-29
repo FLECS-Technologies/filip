@@ -75,6 +75,12 @@ pub fn otel_install_requested() -> bool {
     matches!(std::env::var(OTEL_INSTALL_ENV).as_deref(), Ok("1"))
 }
 
+/// Whether an export destination for the otel-collector is set
+/// (`OTEL_EXPORT_DESTINATION` not empty).
+pub fn otel_export_destination_set() -> bool {
+    std::env::var(OTEL_EXPORT_DESTINATION_ENV).is_ok_and(|destination| !destination.is_empty())
+}
+
 /// Whether fence should be installed. Installed by default;
 /// `INSTALL_FENCE=0` disables it.
 pub fn install_fence() -> bool {

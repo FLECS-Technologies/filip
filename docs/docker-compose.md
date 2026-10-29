@@ -43,7 +43,7 @@ docker compose up -d
 
 ### With the OpenTelemetry Collector
 
-Add two variables to `environment:` and set `OTEL_EXPORT_DESTINATION` to the URL of your OTLP receiver:
+Add two variables to `environment:` and set `OTEL_EXPORT_DESTINATION` to the URL of your OTLP receiver. Both are required. Without `OTEL_EXPORT_DESTINATION`, FILiP doesn't start FLECS:
 
 ```yaml
     environment:
