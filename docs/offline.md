@@ -27,7 +27,7 @@ The steps are the same for every setup. Only **step 4, copying the bundle**, dep
 
 ### Offline device
 
-- Docker 20.10.5 or newer, already installed and running. In offline mode the installer does not install Docker. It stops if Docker is missing.
+- Docker 20.10.10 or newer, already installed and running. In offline mode the installer does not install Docker. It stops if Docker is missing.
 - `bash`, `sort` and `head` (these ship with every standard Linux distribution). `curl` and `wget` are not needed in offline mode.
 - root access (`sudo`)
 - enough free disk space for the loaded images, about the size of the bundle. With option B, the bundle itself is also copied to the device, so you need about twice the bundle size (check with `df -h ~`).

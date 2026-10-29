@@ -642,7 +642,7 @@ determine_docker_version() {
 }
 
 MIN_DOCKER_API_VERSION="1.41"
-MIN_DOCKER_CLIENT_VERSION="20.10.5"
+MIN_DOCKER_CLIENT_VERSION="20.10.10"
 verify_docker_version() {
   if [ "${DOCKER_NAME}" = "podman" ]; then
     log_error "Podman is currently unsupported."

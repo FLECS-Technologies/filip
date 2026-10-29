@@ -47,9 +47,9 @@ The script does not know your Linux distribution. It can still attempt the insta
 
 Install Docker yourself, following the [Docker installation guide](https://docs.docker.com/engine/install/) for your distribution. Then run the script again.
 
-### "FLECS requires at least Docker client version 20.10.5"
+### "FLECS requires at least Docker client version 20.10.10"
 
-Your Docker version is too old. Update Docker, then run the script again.
+Your Docker version is too old. Update Docker, then run the script again. With Docker 20.10.5 to 20.10.9, Docker's default security profile blocks a system call that FLECS Core needs, so FLECS Core crashes at start.
 
 ### "Podman is currently unsupported"
 

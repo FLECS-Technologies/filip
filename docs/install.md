@@ -29,7 +29,7 @@ The installer script is the recommended way to install FLECS Core. It installs D
 * If your version is older, the script stops.
 * On other Linux distributions, such as Yocto-based systems, the script asks for confirmation and then attempts the installation. Docker must be installed beforehand.
 
-FLECS requires Docker 20.10.5 or later with API version 1.41 or later. Podman is not supported.
+FLECS requires Docker 20.10.10 or later with API version 1.41 or later. Podman is not supported.
 
 When the script installs Docker, it uses the `docker.io` package of your distribution.
 

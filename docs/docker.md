@@ -7,7 +7,7 @@ If the installer script does not support your system, you can start the FILiP co
 
 ## Prerequisites
 
-* Docker 20.10.5 or later, with API version 1.41 or later, configured to start on boot.
+* Docker 20.10.10 or later, with API version 1.41 or later, configured to start on boot.
 * Internet access to pull the images.
 
 ## Install FLECS

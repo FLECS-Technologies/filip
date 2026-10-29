@@ -7,7 +7,7 @@ If you manage your containers with Docker Compose, you can start the FILiP conta
 
 ## Prerequisites
 
-* Docker 20.10.5 or later, with API version 1.41 or later.
+* Docker 20.10.10 or later, with API version 1.41 or later.
 * Docker Compose 2.0.0 or later.
 * Internet access to pull the images.
 
