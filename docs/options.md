@@ -76,6 +76,9 @@ FILIP_CORE_ENV=KEY1=value1 KEY2=hello\ world
 FILiP can install an OpenTelemetry Collector that collects metrics and logs from your device, FLECS and your apps, and exports them to an OTLP receiver of your choice.
 
 !!! info
+    The collector requires Docker 25 or later (API version 1.44). With older Docker versions, it restarts repeatedly and exports nothing. This includes the `docker.io` package of Debian 12, which the installer script installs there. The installer script checks the version and stops if it is too old.
+
+!!! info
     FLECS Core sends its data to the collector from version 5.5.0. With older versions, the collector provides only Docker and system metrics. Data from FLECS Core and your apps is missing.
 
 | Script option | Container variable | Default | Description |

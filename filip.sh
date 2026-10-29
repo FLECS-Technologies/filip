@@ -643,6 +643,8 @@ determine_docker_version() {
 
 MIN_DOCKER_API_VERSION="1.41"
 MIN_DOCKER_CLIENT_VERSION="20.10.10"
+# the otel-collector's docker_stats receiver requires API 1.44 (Docker 25)
+MIN_DOCKER_API_VERSION_OTEL="1.44"
 verify_docker_version() {
   if [ "${DOCKER_NAME}" = "podman" ]; then
     log_error "Podman is currently unsupported."
@@ -659,6 +661,12 @@ verify_docker_version() {
     log_error "FLECS requires at least ${DOCKER_NAME} API version ${MIN_DOCKER_API_VERSION}"
     log_error "The available API version is ${DOCKER_API_VERSION}"
     log_fatal "Please upgrade your Docker installation before installing FLECS"
+  fi
+
+  if [ "${INSTALL_OTEL_COLLECTOR}" = "1" ] && [ "${DOCKER_API_VERSION}" != "unknown" ] && cmp_less "${DOCKER_API_VERSION}" "${MIN_DOCKER_API_VERSION_OTEL}"; then
+    log_error "The otel-collector requires at least ${DOCKER_NAME} API version ${MIN_DOCKER_API_VERSION_OTEL} (Docker 25)"
+    log_error "The available API version is ${DOCKER_API_VERSION}"
+    log_fatal "Please upgrade your Docker installation or install FLECS without --install-otel-collector"
   fi
 }
 

@@ -51,6 +51,10 @@ Install Docker yourself, following the [Docker installation guide](https://docs.
 
 Your Docker version is too old. Update Docker, then run the script again. With Docker 20.10.5 to 20.10.9, Docker's default security profile blocks a system call that FLECS Core needs, so FLECS Core crashes at start.
 
+### "The otel-collector requires at least Docker API version 1.44"
+
+The OpenTelemetry Collector requires Docker 25 or later. Update Docker, then run the script again, or install FLECS without `--install-otel-collector`.
+
 ### "Podman is currently unsupported"
 
 FLECS requires Docker. Install Docker instead of Podman, or contact [info@flecs.tech](mailto:info@flecs.tech) if you require Podman support.
