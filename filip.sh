@@ -796,6 +796,27 @@ verify_core_version() {
   fi
 }
 
+# the otel-collector authenticates with a client certificate that FLECS core
+# provides from 5.5.0 onwards
+MIN_VERSION_CORE_OTEL="5.5.0"
+verify_otel_core_version() {
+  if [ "${INSTALL_OTEL_COLLECTOR}" != "1" ]; then
+    return 0
+  fi
+
+  local VERSION=$(strip_version "${VERSION_CORE}")
+  if [[ ! ${VERSION} =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    log_warning "Could not parse FLECS core version ${VERSION_CORE}"
+    log_warning "Skipping check for minimum FLECS core version ${MIN_VERSION_CORE_OTEL} for the otel-collector"
+    return 0
+  fi
+
+  if cmp_less "${VERSION}" "${MIN_VERSION_CORE_OTEL}"; then
+    log_error "The otel-collector requires FLECS core ${MIN_VERSION_CORE_OTEL} or later"
+    log_fatal "Please install a newer FLECS core version or install FLECS without --install-otel-collector"
+  fi
+}
+
 # All Versions from 5.6.0 onwards ship with fence system container
 REQUIRE_FENCE_FROM_VERSION="5.6.0"
 INSTALL_FENCE=
@@ -978,6 +999,7 @@ if [ -z "${FLECS_TESTING}" ]; then
   # query latest FLECS version online
   determine_latest_version
   verify_core_version
+  verify_otel_core_version
   # check if we install fence as system container or app
   determine_fence_setup
 

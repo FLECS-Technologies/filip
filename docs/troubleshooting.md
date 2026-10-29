@@ -55,6 +55,10 @@ Your Docker version is too old. Update Docker, then run the script again. With D
 
 The OpenTelemetry Collector requires Docker 25 or later. Update Docker, then run the script again, or install FLECS without `--install-otel-collector`.
 
+### "The otel-collector requires FLECS core 5.5.0 or later"
+
+You requested the OpenTelemetry Collector with an older FLECS Core version. Install FLECS Core 5.5.0 or later, or install FLECS without `--install-otel-collector`.
+
 ### "Podman is currently unsupported"
 
 FLECS requires Docker. Install Docker instead of Podman, or contact [info@flecs.tech](mailto:info@flecs.tech) if you require Podman support.
