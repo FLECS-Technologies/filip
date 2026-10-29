@@ -67,9 +67,9 @@ The script cannot reach `https://flecs.tech`. Check the internet connection and 
 
 These errors appear in the log of the FILiP container.
 
-### "No free port for http" or "No free port for https"
+### `PortBusy("http")` or `PortBusy("https")`
 
-All default ports are in use by other programs. Choose free ports with `--http-port` and `--https-port`. See [Ports](options.md#ports).
+The log shows `Error: NetworkSetup(PortBusy("http"))` or `Error: NetworkSetup(PortBusy("https"))`. All default ports are in use by other programs. Choose free ports with `--http-port` and `--https-port`. See [Ports](options.md#ports).
 
 ### "No free subnet found for network flecs"
 
