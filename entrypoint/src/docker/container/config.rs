@@ -71,6 +71,7 @@ const CORE_ISSUER_URL_ENV: &str = "FLECS_CORE_ISSUER_URL";
 const CORE_JWK_URL_ENV: &str = "FLECS_CORE_JWK_URL";
 const CORE_AUTHORIZE_URL_ENV: &str = "FLECS_CORE_AUTHORIZE_URL";
 const CORE_TOKEN_URL_ENV: &str = "FLECS_CORE_TOKEN_URL";
+const CORE_FENCE_URL_ENV: &str = "FLECS_CORE_FENCE_URL";
 
 /// Whether otel-collector should be installed
 /// `INSTALL_OTEL_COLLECTOR=1` => true else false.
@@ -260,6 +261,7 @@ pub fn core_container_config(
     if let Some(fence_ip) = fence_ip {
         mounts.push(core_fence_shared_mount());
         let fence_url = format!("http://{fence_ip}:{FENCE_PORT}");
+        env.push(format!("{CORE_FENCE_URL_ENV}={fence_url}"));
         env.push(format!("{CORE_AUTH_KIND_ENV}=oauth"));
         env.push(format!("{CORE_ISSUER_URL_ENV}={fence_url}/meta/issuer"));
         env.push(format!("{CORE_JWK_URL_ENV}={fence_url}/meta/jwk"));
@@ -695,6 +697,7 @@ mod tests {
         let config = core_container_config(None, Some(Ipv4Addr::new(172, 21, 0, 1)));
         let env = config.1.env.unwrap();
         for expected in [
+            "FLECS_CORE_FENCE_URL=http://172.21.0.1:27000",
             "FLECS_CORE_AUTH_KIND=oauth",
             "FLECS_CORE_ISSUER_URL=http://172.21.0.1:27000/meta/issuer",
             "FLECS_CORE_JWK_URL=http://172.21.0.1:27000/meta/jwk",
