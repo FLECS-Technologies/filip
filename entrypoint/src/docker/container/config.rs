@@ -66,11 +66,6 @@ const FENCE_BIND_ADDRESS_ENV: &str = "FENCE_SERVER_BIND_ADDRESS";
 const FENCE_PORT_ENV: &str = "FENCE_SERVER_PORT";
 const FLOXY_FENCE_IPV4_ENV: &str = "FLOXY_FENCE_IPV4";
 const FLOXY_FENCE_HTTP_PORT_ENV: &str = "FLOXY_FENCE_HTTP_PORT";
-const CORE_AUTH_KIND_ENV: &str = "FLECS_CORE_AUTH_KIND";
-const CORE_ISSUER_URL_ENV: &str = "FLECS_CORE_ISSUER_URL";
-const CORE_JWK_URL_ENV: &str = "FLECS_CORE_JWK_URL";
-const CORE_AUTHORIZE_URL_ENV: &str = "FLECS_CORE_AUTHORIZE_URL";
-const CORE_TOKEN_URL_ENV: &str = "FLECS_CORE_TOKEN_URL";
 const CORE_FENCE_URL_ENV: &str = "FLECS_CORE_FENCE_URL";
 
 /// Whether otel-collector should be installed
@@ -262,13 +257,6 @@ pub fn core_container_config(
         mounts.push(core_fence_shared_mount());
         let fence_url = format!("http://{fence_ip}:{FENCE_PORT}");
         env.push(format!("{CORE_FENCE_URL_ENV}={fence_url}"));
-        env.push(format!("{CORE_AUTH_KIND_ENV}=oauth"));
-        env.push(format!("{CORE_ISSUER_URL_ENV}={fence_url}/meta/issuer"));
-        env.push(format!("{CORE_JWK_URL_ENV}={fence_url}/meta/jwk"));
-        env.push(format!(
-            "{CORE_AUTHORIZE_URL_ENV}={fence_url}/oauth/authorize"
-        ));
-        env.push(format!("{CORE_TOKEN_URL_ENV}={fence_url}/oauth/token"));
     }
     if let Some(otelcol_ip) = otelcol_ip {
         mounts.push(Mount {
@@ -698,11 +686,6 @@ mod tests {
         let env = config.1.env.unwrap();
         for expected in [
             "FLECS_CORE_FENCE_URL=http://172.21.0.1:27000",
-            "FLECS_CORE_AUTH_KIND=oauth",
-            "FLECS_CORE_ISSUER_URL=http://172.21.0.1:27000/meta/issuer",
-            "FLECS_CORE_JWK_URL=http://172.21.0.1:27000/meta/jwk",
-            "FLECS_CORE_AUTHORIZE_URL=http://172.21.0.1:27000/oauth/authorize",
-            "FLECS_CORE_TOKEN_URL=http://172.21.0.1:27000/oauth/token",
         ] {
             assert!(env.contains(&expected.to_string()), "missing {expected}");
         }
