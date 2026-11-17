@@ -679,11 +679,13 @@ verify_docker_selinux() {
   fi
 
   local SECURITY_OPTIONS=$(${DOCKER} info --format '{{json .SecurityOptions}}' 2>/dev/null)
-  if [[ "${SECURITY_OPTIONS}" == *"name=selinux"* ]]; then
-    log_error "SELinux is enforcing and enabled in the Docker daemon, which prevents FLECS from accessing Docker"
-    log_error "This is the case with Fedora's moby-engine package"
-    log_fatal "Please install Docker CE instead: https://docs.docker.com/engine/install/"
-  fi
+  case ${SECURITY_OPTIONS} in
+    *name=selinux*)
+      log_error "SELinux is enforcing and enabled in the Docker daemon, which prevents FLECS from accessing Docker"
+      log_error "This is the case with Fedora's moby-engine package"
+      log_fatal "Please install Docker CE instead: https://docs.docker.com/engine/install/"
+      ;;
+  esac
 }
 
 install_docker_debian() {
