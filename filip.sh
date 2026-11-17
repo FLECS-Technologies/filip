@@ -545,35 +545,47 @@ detect_os() {
   detect_arch
 }
 
-DEBIAN_VERSIONS=(11 12 13)
-DEBIAN_CODENAMES=(bullseye bookworm trixie)
+# supported versions in ascending order, each optionally followed by
+# :codename
+DEBIAN_VERSIONS="11:bullseye 12:bookworm 13:trixie"
+UBUNTU_VERSIONS="20.04:focal 22.04:jammy 23.04:lunar 24.04:noble 25.04:plucky 26.04:resolute"
+RHEL_VERSIONS="8.8 9.2"
+FEDORA_VERSIONS="37 38"
 
-UBUNTU_VERSIONS=(20.04 22.04 23.04 24.04 25.04 26.04)
-UBUNTU_CODENAMES=(focal jammy lunar noble plucky resolute)
+# print a list of OS versions as passed to verify_os_version with the given
+# log function
+print_os_versions() {
+  local LOG=${1} ENTRY
+  shift
+  for ENTRY in "$@"; do
+    case ${ENTRY} in
+      *:*)
+        ${LOG} "    ${ENTRY%%:*} (${ENTRY#*:})"
+        ;;
+      *)
+        ${LOG} "    ${ENTRY}"
+        ;;
+    esac
+  done
+}
 
-RHEL_VERSIONS=(8.8 9.2)
-FEDORA_VERSIONS=(37 38)
-
+# verify OS_VERSION against the supported versions passed as arguments
 verify_os_version() {
   if [ -z "${OS_VERSION}" ]; then
     internal_error "OS_VERSION not set in verify_os_version"
   fi
 
-  for i in "${!VERIFY_VERSIONS[@]}"; do
-    if [ "${OS_VERSION}" = "${VERIFY_VERSIONS[$i]}" ]; then
+  local ENTRY LATEST
+  for ENTRY in "$@"; do
+    LATEST=${ENTRY%%:*}
+    if [ "${OS_VERSION}" = "${LATEST}" ]; then
       return 0
     fi
   done
 
-  if cmp_less "${VERIFY_VERSIONS[-1]}" "${OS_VERSION}"; then
+  if cmp_less "${LATEST}" "${OS_VERSION}"; then
     log_warning "You are running an unsupported version of your OS. Supported versions are"
-    for i in "${!VERIFY_VERSIONS[@]}"; do
-      if [ -n "${VERIFY_CODENAMES[$i]}" ]; then
-        log_warning "    ${VERIFY_VERSIONS[$i]} (${VERIFY_CODENAMES[$i]})"
-      else
-        log_warning "    ${VERIFY_VERSIONS[$i]}"
-      fi
-    done
+    print_os_versions log_warning "$@"
     if [ -n "${CODENAME}" ]; then
       log_warning "Your version ${OS_VERSION} (${CODENAME}) seems more recent, so continuing anyway"
     else
@@ -587,37 +599,23 @@ verify_os_version() {
   else
     log_error "You are running an outdated version ${OS_VERSION} of your OS. Supported versions are"
   fi
-  for i in "${!VERIFY_VERSIONS[@]}"; do
-    if [ -n "${VERIFY_CODENAMES[$i]}" ]; then
-      log_error "    ${VERIFY_VERSIONS[$i]} (${VERIFY_CODENAMES[$i]})"
-    else
-      log_error "    ${VERIFY_VERSIONS[$i]}"
-    fi
-  done
+  print_os_versions log_error "$@"
   exit 1
 }
 
 verify_os() {
   case ${OS} in
     debian|raspbian)
-      VERIFY_VERSIONS=("${DEBIAN_VERSIONS[@]}")
-      VERIFY_CODENAMES=("${DEBIAN_CODENAMES[@]}")
-      verify_os_version
+      verify_os_version ${DEBIAN_VERSIONS}
       ;;
     ubuntu|pop)
-      VERIFY_VERSIONS=("${UBUNTU_VERSIONS[@]}")
-      VERIFY_CODENAMES=("${UBUNTU_CODENAMES[@]}")
-      verify_os_version
+      verify_os_version ${UBUNTU_VERSIONS}
       ;;
     fedora)
-      VERIFY_VERSIONS=("${FEDORA_VERSIONS[@]}")
-      VERIFY_CODENAMES=()
-      verify_os_version
+      verify_os_version ${FEDORA_VERSIONS}
       ;;
     rhel)
-      VERIFY_VERSIONS=("${RHEL_VERSIONS[@]}")
-      VERIFY_CODENAMES=()
-      verify_os_version
+      verify_os_version ${RHEL_VERSIONS}
       ;;
     arch)
       # rolling release, so no version to check
