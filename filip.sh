@@ -17,7 +17,6 @@ cat <<'EOF' > /tmp/filip.sh
 #!/bin/bash
 ME="FILiP"
 SCRIPTNAME=$(readlink -f "${0}")
-ARGS=("$@")
 CORE_ENV_PAIRS=""
 FLOXY_ENV_PAIRS=""
 WEBAPP_ENV_PAIRS=""
@@ -719,6 +718,8 @@ install_docker_debian() {
   fi
 }
 
+# install Docker and restart the installer with the arguments passed to
+# install_docker, which are the original arguments of the installer
 install_docker() {
   if [ "${OFFLINE}" = "1" ]; then
     log_fatal "Docker is not installed or not running. Please install and start Docker before running ${ME} with --offline"
@@ -730,13 +731,15 @@ install_docker() {
   install_docker_debian
   log_info " ✅"
   log_info "  Restarting installer..."
-  exec "${SCRIPTNAME}" --no-banner --no-welcome "${ARGS[@]}"
+  exec "${SCRIPTNAME}" --no-banner --no-welcome "$@"
 }
 
+# ensure Docker is installed and running. Pass the original arguments of the
+# installer, so it can restart itself after installing Docker
 ensure_docker() {
   # `docker` executable is required
   if [ -z "${DOCKER}" ]; then
-    install_docker
+    install_docker "$@"
   fi
 
   # `docker version` needs to succeed
@@ -755,7 +758,7 @@ ensure_docker() {
   fi
 
   # if starting service failed, or service is not present -> install
-  install_docker
+  install_docker "$@"
 }
 
 determine_latest_version() {
@@ -980,7 +983,7 @@ if [ -z "${FLECS_TESTING}" ]; then
       log_fatal "Please login as root user and restart installation"
     else
       if confirm_yn "Restart using sudo"; then
-        exec ${SUDO} "${SCRIPTNAME}" --no-banner "${ARGS[@]}"
+        exec ${SUDO} "${SCRIPTNAME}" --no-banner "$@"
       else
         log_fatal "Cannot continue installation without root privileges"
       fi
@@ -1026,7 +1029,7 @@ if [ -z "${FLECS_TESTING}" ]; then
     check_connectivity
   fi
 
-  ensure_docker
+  ensure_docker "$@"
   determine_docker_version
   verify_docker_version
   verify_docker_selinux
