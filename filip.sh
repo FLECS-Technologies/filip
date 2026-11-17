@@ -27,6 +27,8 @@ VERSION_OTEL_COLLECTOR="0"
 FENCE_ENV_PAIRS=""
 STDOUT=/dev/null
 STDERR=/dev/null
+# tests use FILIP_TEST_OS_RELEASE to simulate other operating systems
+OS_RELEASE_FILE=${FILIP_TEST_OS_RELEASE:-/etc/os-release}
 
 LATEST_URL=https://latest.flecs.tech
 CONTAINER_REGISTRY=cr.flecs.tech
@@ -502,10 +504,10 @@ detect_arch() {
 
 parse_os_release() {
   if [ -n "${SED}" ]; then
-    ${SED} -nE "s/^${1}=\"?([^\"]+)\"?$/\1/p" /etc/os-release 2>/dev/null
+    ${SED} -nE "s/^${1}=\"?([^\"]+)\"?$/\1/p" "${OS_RELEASE_FILE}" 2>/dev/null
   elif [ -n "${GREP}" ]; then
-    if ! ${GREP} -oP "(?<=^${1}=\").+(?=\")" /etc/os-release 2>/dev/null; then
-      ${GREP} -oP "(?<=^${1}=).+$" /etc/os-release 2>/dev/null
+    if ! ${GREP} -oP "(?<=^${1}=\").+(?=\")" "${OS_RELEASE_FILE}" 2>/dev/null; then
+      ${GREP} -oP "(?<=^${1}=).+$" "${OS_RELEASE_FILE}" 2>/dev/null
     fi
   fi
 }
