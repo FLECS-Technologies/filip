@@ -674,7 +674,7 @@ verify_docker_version() {
 # FILiP cannot access the Docker socket if SELinux is enforcing and the Docker
 # daemon has SELinux support enabled, e.g. with Fedora's moby-engine package
 verify_docker_selinux() {
-  if [ ! -r /sys/fs/selinux/enforce ] || [ "$(< /sys/fs/selinux/enforce)" != "1" ]; then
+  if [ ! -r /sys/fs/selinux/enforce ] || [ "$(cat /sys/fs/selinux/enforce)" != "1" ]; then
     return 0
   fi
 
