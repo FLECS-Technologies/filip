@@ -1,0 +1,18 @@
+#!/bin/sh
+# fake curl, configured with FAKE_ONLINE and FAKE_LATEST_*
+printf '%s\n' "$*" >> "${LOG}/curl"
+for ARG in "$@"; do URL=${ARG}; done
+case "${URL}" in
+  https://flecs.tech)
+    [ "${FAKE_ONLINE}" = "1" ]
+    ;;
+  */core)
+    printf '%s' "${FAKE_LATEST_CORE}"
+    ;;
+  */webapp)
+    printf '%s' "${FAKE_LATEST_WEBAPP}"
+    ;;
+  *)
+    exit 1
+    ;;
+esac

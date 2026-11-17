@@ -1,0 +1,5 @@
+#!/bin/sh
+# fake sudo, logs its arguments one per line instead of running them
+for ARG in "$@"; do
+  printf '%s\n' "${ARG}"
+done > "${LOG}/sudo"

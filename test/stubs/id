@@ -1,0 +1,10 @@
+#!/bin/sh
+# fake id, reports FAKE_UID as user id
+case "${1}" in
+  -u)
+    printf '%s\n' "${FAKE_UID}"
+    ;;
+  *)
+    exit 1
+    ;;
+esac

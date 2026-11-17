@@ -1,0 +1,15 @@
+#!/bin/sh
+# fake systemctl. docker.service exists if FAKE_DOCKER_SERVICE is 1, and
+# starting it makes the fake docker daemon run
+printf '%s\n' "$*" >> "${LOG}/systemctl"
+case "$*" in
+  "cat docker.service")
+    [ "${FAKE_DOCKER_SERVICE}" = "1" ]
+    ;;
+  "enable --now docker")
+    : > "${LOG}/docker-running"
+    ;;
+  *)
+    exit 1
+    ;;
+esac

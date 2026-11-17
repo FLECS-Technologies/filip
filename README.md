@@ -38,3 +38,17 @@ The container needs access to the docker daemon in order to manage the other con
 `--restart=always`\
 This restarts flecs on errors and automatically when the docker daemon is started. This is meant to also start flecs on
 system boot which requires the docker daemon to automatically start on boot as well.
+
+## Testing
+
+[test/run.sh](test/run.sh) tests the installer script. It replaces docker, curl,
+apt-get and other tools with stubs, so it neither needs root nor changes the
+system. Pass the shells to run the installer with:
+
+```bash
+test/run.sh bash dash
+docker run --rm -v "$PWD:/src:ro" -w /src alpine test/run.sh   # BusyBox ash
+```
+
+The installer must keep working with any POSIX shell, so test changes with at
+least dash and BusyBox ash, not only bash.

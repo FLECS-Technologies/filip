@@ -1,0 +1,16 @@
+#!/bin/sh
+# fake dpkg, configured with FAKE_ARCH and FAKE_INSTALLED_PACKAGES
+case "${1}" in
+  --print-architecture)
+    printf '%s\n' "${FAKE_ARCH}"
+    ;;
+  -l)
+    for PKG in ${FAKE_INSTALLED_PACKAGES}; do
+      if [ "${PKG}" = "${2}" ]; then
+        printf 'ii  %s  1.0  amd64  fake package\n' "${2}"
+        exit 0
+      fi
+    done
+    exit 1
+    ;;
+esac

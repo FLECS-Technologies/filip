@@ -1,0 +1,9 @@
+#!/bin/sh
+# fake apt-get. Installing docker.io makes the fake docker available
+printf '%s\n' "$*" >> "${LOG}/apt-get"
+case " $* " in
+  *" install "*" docker.io "*)
+    cp "${STUB_SOURCE}/docker" "${STUBS}/docker"
+    : > "${LOG}/docker-running"
+    ;;
+esac

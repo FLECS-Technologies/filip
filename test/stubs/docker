@@ -1,0 +1,35 @@
+#!/bin/sh
+# fake docker, configured with FAKE_DOCKER_* variables. The daemon counts as
+# running while ${LOG}/docker-running exists.
+printf '%s\n' "$*" >> "${LOG}/docker"
+case "${1}" in
+  -v)
+    printf '%s\n' "${FAKE_DOCKER_CLIENT}"
+    ;;
+  version)
+    [ -e "${LOG}/docker-running" ] || exit 1
+    if [ "${2}" = "--format" ]; then
+      printf '%s\n' "${FAKE_DOCKER_API}"
+    fi
+    ;;
+  info)
+    printf '%s\n' "${FAKE_DOCKER_SECURITY_OPTIONS}"
+    ;;
+  image)
+    exit "${FAKE_DOCKER_PULL_EXIT}"
+    ;;
+  container)
+    case "${2}" in
+      rm)
+        ;;
+      run)
+        shift 2
+        # one argument per line, so tests can compare them exactly
+        for ARG in "$@"; do
+          printf '%s\n' "${ARG}"
+        done > "${LOG}/docker-run"
+        exit "${FAKE_DOCKER_RUN_EXIT}"
+        ;;
+    esac
+    ;;
+esac
