@@ -2,10 +2,10 @@
 
 You can configure the installation with options of the installer script or with environment variables of the FILiP container.
 
-* With the **installer script**, pass options after `bash -s --`:
+* With the **installer script**, pass options after `sh -s --`:
 
     ```bash
-    curl -fsSL install.flecs.tech | bash -s -- --yes --http-port 8080
+    curl -fsSL install.flecs.tech | sh -s -- --yes --http-port 8080
     ```
 
 * With **Docker Compose** or **Docker**, set the environment variables of the `flecs` container. See [Install with Docker Compose](docker-compose.md) and [Install with Docker](docker.md).
@@ -58,7 +58,7 @@ Pass additional environment variables to the FLECS containers, for example to co
 Repeat a script option to pass several variables:
 
 ```bash
-curl -fsSL install.flecs.tech | bash -s -- \
+curl -fsSL install.flecs.tech | sh -s -- \
   --core-env KEY1=value1 \
   --core-env KEY2=value2
 ```

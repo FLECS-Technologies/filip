@@ -7,7 +7,7 @@ By default, the installer script installs the latest releases of FLECS Core and 
 Pass the versions to the installer script:
 
 ```bash
-curl -fsSL install.flecs.tech | bash -s -- --core-version 5.5.0 --webapp-version 5.4.1
+curl -fsSL install.flecs.tech | sh -s -- --core-version 5.5.0 --webapp-version 5.4.1
 ```
 
 You can write versions with or without a leading `v`, for example `5.5.0` or `v5.5.0`.

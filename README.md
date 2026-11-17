@@ -13,7 +13,7 @@ To preview the docs locally, see
 ### Automatically with script
 This will automatically install docker on your system and create and start a flecs startup container.
 ```bash
-curl -fsSL install.flecs.tech | bash
+curl -fsSL install.flecs.tech | sh
 ```
 
 If your operating system is not supported by this script you can still install flecs, see the [next section](#manually-with-docker).

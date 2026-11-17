@@ -8,9 +8,9 @@ To install FLECS yourself, use FILiP, the FLECS Installer for Linux Platforms. I
 
 | Method | Use it when | Guide |
 |---|---|---|
-| **Installer script** | You install on Debian, Ubuntu or another Linux system with `bash`. Recommended for most users. | [Install with the installer script](install.md) |
-| **Docker Compose** | Docker is already set up and you manage your containers with Compose, or your system has no `bash`. | [Install with Docker Compose](docker-compose.md) |
-| **Docker** | Docker is already set up and the installer script does not support your system, for example because it has no `bash`. | [Install with Docker](docker.md) |
+| **Installer script** | You install on Debian, Ubuntu or another Linux system. Recommended for most users. | [Install with the installer script](install.md) |
+| **Docker Compose** | Docker is already set up and you manage your containers with Compose. | [Install with Docker Compose](docker-compose.md) |
+| **Docker** | Docker is already set up and the installer script does not support your system. | [Install with Docker](docker.md) |
 | **Manual** | You need full control over every container, network and volume, or FLECS must trust custom CA certificates, for example behind a TLS-inspecting proxy. | [Install manually](manual.md) |
 
 All methods except the manual one install the same components in the same way. Each guide also describes how to add the optional OpenTelemetry Collector.

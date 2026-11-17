@@ -11,7 +11,7 @@ The steps are the same for every setup. Only **step 4, copying the bundle**, dep
  online machine                  transfer                       offline device
  ──────────────                  ────────                       ──────────────
  download filip.sh      ──────►  USB drive (A)       ──────►    docker load
- docker pull + save     ──────►  or scp (B)                     bash filip.sh ...
+ docker pull + save     ──────►  or scp (B)                     sh filip.sh ...
 ```
 
 !!! info "Running Docker commands"
@@ -28,7 +28,7 @@ The steps are the same for every setup. Only **step 4, copying the bundle**, dep
 ### Offline device
 
 - Docker 20.10.10 or newer, already installed and running. In offline mode the installer does not install Docker. It stops if Docker is missing.
-- `bash`, `sort` and `head` (these ship with every standard Linux distribution). `curl` and `wget` are not needed in offline mode.
+- `sort` and `head` (these ship with every standard Linux distribution). `curl` and `wget` are not needed in offline mode.
 - root access (`sudo`)
 - enough free disk space for the loaded images, about the size of the bundle. With option B, the bundle itself is also copied to the device, so you need about twice the bundle size (check with `df -h ~`).
 - Option B only: a running SSH server and a user account you can log in with
@@ -170,9 +170,9 @@ docker image ls 'cr.flecs.tech/flecs/*'
 ### 6. Run the installer
 
 ```bash
-source "${BUNDLE}/versions.env"
+. "${BUNDLE}/versions.env"
 
-sudo bash "${BUNDLE}/filip.sh" --offline \
+sudo sh "${BUNDLE}/filip.sh" --offline \
   --core-version "${CORE_VERSION}" \
   --webapp-version "${WEBAPP_VERSION}" \
   ${WHITELABEL:+--whitelabel "${WHITELABEL}"}
@@ -183,9 +183,9 @@ What the parts of this command do:
 - **`--offline`** skips the internet connectivity check and the online lookup of the latest versions. It also stops the installer from trying to install Docker: if Docker is missing or not running, the installer stops with an error.
 - **`--core-version` / `--webapp-version`** are required with `--offline`, because the installer cannot look up the latest versions. Use the versions you exported in step 3.
 - **`${WHITELABEL:+--whitelabel …}`** adds `--whitelabel <name>` if `versions.env` contains a whitelabel, and nothing otherwise. With `WHITELABEL=acme`, the installer starts `cr.flecs.tech/flecs/webapp:v5.4.0-acme`.
-- **`bash …`** runs the script without needing it to be executable, so it also works when the bundle is on a USB drive mounted `noexec`.
+- **`sh …`** runs the script without needing it to be executable, so it also works when the bundle is on a USB drive mounted `noexec`.
 
-You can add any other installer option you normally use, for example `-y` for unattended mode or `--http-port`/`--https-port`. See [Options](options.md) for all options, and [With the OpenTelemetry Collector](#with-the-opentelemetry-collector) for the collector. Run `bash filip.sh --help` to see which options your copy of the installer supports.
+You can add any other installer option you normally use, for example `-y` for unattended mode or `--http-port`/`--https-port`. See [Options](options.md) for all options, and [With the OpenTelemetry Collector](#with-the-opentelemetry-collector) for the collector. Run `sh filip.sh --help` to see which options your copy of the installer supports.
 
 ### With the OpenTelemetry Collector
 
@@ -193,7 +193,7 @@ You can add any other installer option you normally use, for example `-y` for un
 2. In step 6, add both collector options. Set `--otel-export-destination` to the URL of your OTLP receiver:
 
     ```bash
-    sudo bash "${BUNDLE}/filip.sh" --offline \
+    sudo sh "${BUNDLE}/filip.sh" --offline \
       --core-version "${CORE_VERSION}" \
       --webapp-version "${WEBAPP_VERSION}" \
       ${WHITELABEL:+--whitelabel "${WHITELABEL}"} \

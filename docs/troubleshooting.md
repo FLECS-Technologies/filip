@@ -8,7 +8,7 @@
 * Run the installer script with `--verbose` to see the output of every command, or `--debug` for internal messages as well:
 
     ```bash
-    curl -fsSL install.flecs.tech | bash -s -- --verbose
+    curl -fsSL install.flecs.tech | sh -s -- --verbose
     ```
 
 * Show the log of the FILiP container, which starts and stops all FLECS containers:

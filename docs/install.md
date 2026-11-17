@@ -10,7 +10,7 @@ The installer script is the recommended way to install FLECS Core. It installs D
 * A device with an AMD64 or ARM64 processor: a PC, an industrial device or a virtual machine.
 * Terminal access, through SSH or a connected keyboard and display.
 * Root privileges. If you run the script as a regular user, it offers to restart itself with `sudo`.
-* `bash`, and `curl` or `wget`.
+* `curl` or `wget`.
 * Internet access. To install without internet access, see [Offline Installation](offline.md).
 
 ## Supported platforms
@@ -40,13 +40,13 @@ On Fedora, install Docker CE following the [Docker installation guide](https://d
 Open a terminal and run:
 
 ```bash
-curl -fsSL install.flecs.tech | bash
+curl -fsSL install.flecs.tech | sh
 ```
 
 To skip the confirmation prompts, for example in automated setups, add `--yes`:
 
 ```bash
-curl -fsSL install.flecs.tech | bash -s -- --yes
+curl -fsSL install.flecs.tech | sh -s -- --yes
 ```
 
 For all options, see [Options](options.md). To install a specific version, see [Versions](versions.md).
@@ -56,7 +56,7 @@ For all options, see [Options](options.md). To install a specific version, see [
 Add `--install-otel-collector` and the URL of your OTLP receiver:
 
 ```bash
-curl -fsSL install.flecs.tech | bash -s -- \
+curl -fsSL install.flecs.tech | sh -s -- \
   --install-otel-collector \
   --otel-export-destination https://otlp.example.com
 ```
@@ -89,7 +89,7 @@ Continue with the [Initial Setup](https://docs.flecs.tech/flecs-core/initial-set
 Run the installer script again:
 
 ```bash
-curl -fsSL install.flecs.tech | bash
+curl -fsSL install.flecs.tech | sh
 ```
 
 The script installs the latest versions and keeps your data and apps. Use the same options as for the original installation, for example `--http-port`.
