@@ -158,6 +158,19 @@ strip_version() {
   printf '%s' "${VERSION%%-*}"
 }
 
+# check if a version number has the form X.Y.Z with numeric X, Y and Z
+is_plain_version() {
+  case ${1} in
+    ''|*[!0-9.]*|.*|*.|*..*|*.*.*.*)
+      return 1
+      ;;
+    *.*.*)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
 # compare two version numbers in a robust way
 cmp_less() {
   if [ -z "${1}" ] || [ -z "${2}" ]; then
@@ -800,7 +813,7 @@ verify_core_version() {
   fi
 
   local VERSION=$(strip_version "${VERSION_CORE}")
-  if [[ ! ${VERSION} =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  if ! is_plain_version "${VERSION}"; then
     log_warning "Could not parse FLECS core version ${VERSION_CORE}"
     log_warning "Skipping check for minimum supported version ${MIN_VERSION_CORE}"
     return 0
@@ -823,7 +836,7 @@ verify_otel_core_version() {
   fi
 
   local VERSION=$(strip_version "${VERSION_CORE}")
-  if [[ ! ${VERSION} =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  if ! is_plain_version "${VERSION}"; then
     log_warning "Could not parse FLECS core version ${VERSION_CORE}"
     log_warning "Skipping check for minimum FLECS core version ${MIN_VERSION_CORE_OTEL} for the otel-collector"
     return 0
@@ -848,7 +861,7 @@ determine_fence_setup() {
 
   local CORE=$(strip_version "${VERSION_CORE}")
 
-  if [[ ! ${CORE} =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  if ! is_plain_version "${CORE}"; then
     log_warning "Could not parse FLECS core (${VERSION_CORE}) version."
     log_warning "Falling back to default behaviour: fence will be installed as system container."
     INSTALL_FENCE=1
