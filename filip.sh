@@ -398,7 +398,7 @@ have_program() {
 # program in uppercase (e.g. CURL=... for curl)
 have() {
   log_debug -n "Looking for ${1}..."
-  local TOOL=${1^^}
+  local TOOL=$(printf '%s' "${1}" | tr 'a-z' 'A-Z')
   local TOOL=${TOOL//-/_}
   local TOOL=${TOOL//./_}
   if [ -z "${!TOOL}" ]; then
