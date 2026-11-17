@@ -166,7 +166,7 @@ cmp_less() {
   if [ "${1}" = "${2}" ]; then
     return 1
   fi
-  local RES=$(${SORT} -t . -k 1,1n -k 2,2n -k 3,3n <(echo "${1}") <(echo "${2}") | ${HEAD} -n1)
+  local RES=$(printf '%s\n%s\n' "${1}" "${2}" | ${SORT} -t . -k 1,1n -k 2,2n -k 3,3n | ${HEAD} -n1)
   if [ "${RES}" = "${1}" ]; then
     return 0
   fi
