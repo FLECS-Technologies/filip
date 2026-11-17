@@ -127,15 +127,16 @@ require_stdin() {
 confirm() {
   if [ -z "${ASSUME_YES}" ]; then
     require_stdin
-    read -s -p "$@"
-    echo >&2
+    printf '%s' "$*" >&2
+    read -r REPLY
   fi
 }
 confirm_yn() {
   if [ -z "${ASSUME_YES}" ]; then
     require_stdin
     while true; do
-      read -p "$@? [y/n]: " input
+      printf '%s? [y/n]: ' "$*" >&2
+      read -r input
       case ${input} in
         [yY]*)
           return 0
