@@ -27,8 +27,9 @@ VERSION_OTEL_COLLECTOR="0"
 FENCE_ENV_PAIRS=""
 STDOUT=/dev/null
 STDERR=/dev/null
-# tests use FILIP_TEST_OS_RELEASE to simulate other operating systems
+# tests use FILIP_TEST_* variables to simulate other systems
 OS_RELEASE_FILE=${FILIP_TEST_OS_RELEASE:-/etc/os-release}
+SELINUX_ENFORCE_FILE=${FILIP_TEST_SELINUX_ENFORCE:-/sys/fs/selinux/enforce}
 
 LATEST_URL=https://latest.flecs.tech
 CONTAINER_REGISTRY=cr.flecs.tech
@@ -689,7 +690,7 @@ verify_docker_version() {
 # FILiP cannot access the Docker socket if SELinux is enforcing and the Docker
 # daemon has SELinux support enabled, e.g. with Fedora's moby-engine package
 verify_docker_selinux() {
-  if [ ! -r /sys/fs/selinux/enforce ] || [ "$(cat /sys/fs/selinux/enforce)" != "1" ]; then
+  if [ ! -r "${SELINUX_ENFORCE_FILE}" ] || [ "$(cat "${SELINUX_ENFORCE_FILE}")" != "1" ]; then
     return 0
   fi
 
