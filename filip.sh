@@ -956,7 +956,7 @@ if [ -z "${FLECS_TESTING}" ]; then
   banner
 
   # ensure running as root
-  if [ ${EUID} -ne 0 ]; then
+  if [ "$(id -u)" -ne 0 ]; then
     log_error "${ME} needs to run as root"
     if ! have sudo; then
       log_fatal "Please login as root user and restart installation"
