@@ -18,11 +18,11 @@ cat <<'EOF' > /tmp/filip.sh
 ME="FILiP"
 SCRIPTNAME=$(readlink -f "${0}")
 ARGS=("$@")
-CORE_ENV_ARGS=()
-FLOXY_ENV_ARGS=()
-WEBAPP_ENV_ARGS=()
+CORE_ENV_PAIRS=""
+FLOXY_ENV_PAIRS=""
+WEBAPP_ENV_PAIRS=""
 VERSION_OTEL_COLLECTOR="0"
-FENCE_ENV_ARGS=()
+FENCE_ENV_PAIRS=""
 STDOUT=/dev/null
 STDERR=/dev/null
 
@@ -292,7 +292,7 @@ parse_args() {
           print_usage
           exit 1
         fi
-        CORE_ENV_ARGS+=("${2}")
+        add_env_pair CORE_ENV_PAIRS "${2}"
         shift
         ;;
       --floxy-env)
@@ -301,7 +301,7 @@ parse_args() {
           print_usage
           exit 1
         fi
-        FLOXY_ENV_ARGS+=("${2}")
+        add_env_pair FLOXY_ENV_PAIRS "${2}"
         shift
         ;;
       --webapp-env)
@@ -310,7 +310,7 @@ parse_args() {
           print_usage
           exit 1
         fi
-        WEBAPP_ENV_ARGS+=("${2}")
+        add_env_pair WEBAPP_ENV_PAIRS "${2}"
         shift
         ;;
       --install-otel-collector)
@@ -340,7 +340,7 @@ parse_args() {
           print_usage
           exit 1
         fi
-        FENCE_ENV_ARGS+=("${2}")
+        add_env_pair FENCE_ENV_PAIRS "${2}"
         shift
         ;;
       --help)
@@ -368,7 +368,7 @@ parse_args() {
     exit 1
   fi
 
-  if [ "${VERSION_WEBAPP}" = "none" ] && [ ${#WEBAPP_ENV_ARGS[@]} -gt 0 ]; then
+  if [ "${VERSION_WEBAPP}" = "none" ] && [ -n "${WEBAPP_ENV_PAIRS}" ]; then
     log_error "argument --webapp-env cannot be used together with --webapp-version none"
     print_usage
     exit 1
@@ -887,28 +887,24 @@ banner() {
   fi
 }
 
-build_env_pairs() {
-  # Joins KEY=VALUE pairs into a single space-separated string for passing as
-  # one environment variable. Values may contain any characters via backslash
-  # escaping: '\' is encoded as '\\' and ' ' as '\ '. The recipient splits on
-  # unescaped spaces and decodes each pair.
-  local PAIRS="" ARG REST CHUNK ESCAPED
-  for ARG in "$@"; do
-    ESCAPED=""
-    REST=${ARG}
-    while [ -n "${REST}" ]; do
-      # copy everything up to the next '\' or ' ', then that character escaped
-      CHUNK=${REST%%[\\ ]*}
-      ESCAPED="${ESCAPED}${CHUNK}"
-      REST=${REST#"${CHUNK}"}
-      if [ -n "${REST}" ]; then
-        ESCAPED="${ESCAPED}\\${REST%"${REST#?}"}"
-        REST=${REST#?}
-      fi
-    done
-    PAIRS="${PAIRS:+${PAIRS} }${ESCAPED}"
+add_env_pair() {
+  # Appends the KEY=VALUE pair ${2} to the variable named ${1}, which holds a
+  # single space-separated string for passing as one environment variable.
+  # Values may contain any characters via backslash escaping: '\' is encoded
+  # as '\\' and ' ' as '\ '. The recipient splits on unescaped spaces and
+  # decodes each pair.
+  local REST=${2} CHUNK ESCAPED=""
+  while [ -n "${REST}" ]; do
+    # copy everything up to the next '\' or ' ', then that character escaped
+    CHUNK=${REST%%[\\ ]*}
+    ESCAPED="${ESCAPED}${CHUNK}"
+    REST=${REST#"${CHUNK}"}
+    if [ -n "${REST}" ]; then
+      ESCAPED="${ESCAPED}\\${REST%"${REST#?}"}"
+      REST=${REST#?}
+    fi
   done
-  printf '%s' "${PAIRS}"
+  eval "${1}=\"\${${1}:+\${${1}} }\${ESCAPED}\""
 }
 
 start_flecs() {
@@ -927,16 +923,15 @@ start_flecs() {
     internal_error "INSTALL_FENCE not set in start_flecs"
   fi
   ENV_ARGS+=(-e "INSTALL_FENCE=${INSTALL_FENCE}")
-  local PAIRS
-  PAIRS=$(build_env_pairs "${CORE_ENV_ARGS[@]}") && [ -n "${PAIRS}" ] && ENV_ARGS+=(-e "FILIP_CORE_ENV=${PAIRS}")
-  PAIRS=$(build_env_pairs "${FLOXY_ENV_ARGS[@]}") && [ -n "${PAIRS}" ] && ENV_ARGS+=(-e "FILIP_FLOXY_ENV=${PAIRS}")
-  PAIRS=$(build_env_pairs "${WEBAPP_ENV_ARGS[@]}") && [ -n "${PAIRS}" ] && ENV_ARGS+=(-e "FILIP_WEBAPP_ENV=${PAIRS}")
+  [ -n "${CORE_ENV_PAIRS}" ] && ENV_ARGS+=(-e "FILIP_CORE_ENV=${CORE_ENV_PAIRS}")
+  [ -n "${FLOXY_ENV_PAIRS}" ] && ENV_ARGS+=(-e "FILIP_FLOXY_ENV=${FLOXY_ENV_PAIRS}")
+  [ -n "${WEBAPP_ENV_PAIRS}" ] && ENV_ARGS+=(-e "FILIP_WEBAPP_ENV=${WEBAPP_ENV_PAIRS}")
   if [ "${INSTALL_OTEL_COLLECTOR}" = "1" ]; then
     ENV_ARGS+=(-e "INSTALL_OTEL_COLLECTOR=1")
     ENV_ARGS+=(-e "VERSION_OTEL_COLLECTOR=${VERSION_OTEL_COLLECTOR}")
     ENV_ARGS+=(-e "OTEL_EXPORT_DESTINATION=${OTEL_EXPORT_DESTINATION}")
   fi
-  PAIRS=$(build_env_pairs "${FENCE_ENV_ARGS[@]}") && [ -n "${PAIRS}" ] && ENV_ARGS+=(-e "FILIP_FENCE_ENV=${PAIRS}")
+  [ -n "${FENCE_ENV_PAIRS}" ] && ENV_ARGS+=(-e "FILIP_FENCE_ENV=${FENCE_ENV_PAIRS}")
   local FILIP_TAG="latest"
   if [ -n "$VERSION_FILIP" ]; then
     FILIP_TAG="$VERSION_FILIP"
