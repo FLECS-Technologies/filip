@@ -398,9 +398,7 @@ have_program() {
 # program in uppercase (e.g. CURL=... for curl)
 have() {
   log_debug -n "Looking for ${1}..."
-  local TOOL=$(printf '%s' "${1}" | tr 'a-z' 'A-Z')
-  local TOOL=${TOOL//-/_}
-  local TOOL=${TOOL//./_}
+  local TOOL=$(printf '%s' "${1}" | tr 'a-z.-' 'A-Z__')
   if [ -z "${!TOOL}" ]; then
     declare -g ${TOOL}=$(have_program "${1}")
   fi
@@ -894,10 +892,20 @@ build_env_pairs() {
   # one environment variable. Values may contain any characters via backslash
   # escaping: '\' is encoded as '\\' and ' ' as '\ '. The recipient splits on
   # unescaped spaces and decodes each pair.
-  PAIRS=""
+  local PAIRS="" ARG REST CHUNK ESCAPED
   for ARG in "$@"; do
-    ESCAPED="${ARG//\\/\\\\}"
-    ESCAPED="${ESCAPED// /\\ }"
+    ESCAPED=""
+    REST=${ARG}
+    while [ -n "${REST}" ]; do
+      # copy everything up to the next '\' or ' ', then that character escaped
+      CHUNK=${REST%%[\\ ]*}
+      ESCAPED="${ESCAPED}${CHUNK}"
+      REST=${REST#"${CHUNK}"}
+      if [ -n "${REST}" ]; then
+        ESCAPED="${ESCAPED}\\${REST%"${REST#?}"}"
+        REST=${REST#?}
+      fi
+    done
     PAIRS="${PAIRS:+${PAIRS} }${ESCAPED}"
   done
   printf '%s' "${PAIRS}"
