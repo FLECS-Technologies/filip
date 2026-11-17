@@ -430,8 +430,7 @@ apt_install() {
 # detect which tools are available on the system
 detect_tools() {
   log_debug "Checking availability of required tools..."
-  TOOLS=(apt-get curl wget docker grep head sed sort systemctl uname dpkg)
-  for TOOL in "${TOOLS[@]}"; do
+  for TOOL in apt-get curl wget docker grep head sed sort systemctl uname dpkg; do
     have "${TOOL}"
   done
 }
