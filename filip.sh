@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Copyright 2021-2023 FLECS Technologies GmbH
 #
 # Licensed under the Apache License, Version 2.  (the "License");
@@ -13,8 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# This script and the installer it writes to /tmp/filip.sh are expected to
+# be POSIX compliant.
+
 cat <<'EOF' > /tmp/filip.sh
-#!/bin/bash
+#!/bin/sh
 ME="FILiP"
 SCRIPTNAME=$(readlink -f "${0}")
 CORE_ENV_PAIRS=""
