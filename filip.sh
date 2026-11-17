@@ -57,59 +57,59 @@ print_usage() {
 # some log functions...
 log_debug() {
   if [ -n "${LOG_DEBUG}" ]; then
+    local END='\n'
+    local PREFIX='*** Debug: '
     while true; do
       case ${1} in
         -n)
-          local ECHO_ARGS="-n"
+          END=''
           shift
           ;;
         -q)
-          local NO_PREFIX=true
+          PREFIX=''
           shift
           ;;
         *)
           break;;
       esac
     done
-    if [ -z "${NO_PREFIX}" ]; then
-      echo ${ECHO_ARGS} "*** Debug: $@"
-    else
-      echo ${ECHO_ARGS} "$@"
-    fi
+    printf "%s%s${END}" "${PREFIX}" "$*"
   fi
 }
 log_info() {
+  local END='\n'
   while true; do
     case ${1} in
       -n)
-        local ECHO_ARGS="-n"
+        END=''
         shift
         ;;
       *)
         break;;
     esac
   done
-  echo ${ECHO_ARGS} "$@"
+  printf "%s${END}" "$*"
 }
 log_warning() {
-  echo "⚠  $@" 1>&2
+  printf '⚠  %s\n' "$*" 1>&2
 }
 log_error() {
+  local END='\n'
   while true; do
     case ${1} in
       -n)
-        local ECHO_ARGS="-n"
+        END=''
         shift
         ;;
       *)
         break;;
     esac
   done
-  echo ${ECHO_ARGS} "❌ $@" 1>&2
+  printf "❌ %s${END}" "$*" 1>&2
 }
 # log_fatal will terminate with exit code 1 after logging
 log_fatal() {
-  echo "❌ $@" 1>&2
+  printf '❌ %s\n' "$*" 1>&2
   exit 1
 }
 # internal_error should *only* be called if guaranteed preconditions are not met
