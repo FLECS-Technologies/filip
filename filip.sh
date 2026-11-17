@@ -908,30 +908,30 @@ add_env_pair() {
 }
 
 start_flecs() {
-  local ENV_ARGS=(-e "VERSION_CORE=${VERSION_CORE}")
+  set -- -e "VERSION_CORE=${VERSION_CORE}"
   if [ "${VERSION_WEBAPP}" = "none" ]; then
-    ENV_ARGS+=(-e "INSTALL_WEBAPP=0")
+    set -- "$@" -e "INSTALL_WEBAPP=0"
   else
-    ENV_ARGS+=(-e "VERSION_WEBAPP=${VERSION_WEBAPP}")
+    set -- "$@" -e "VERSION_WEBAPP=${VERSION_WEBAPP}"
   fi
-  [ -n "${WHITELABEL}" ] && ENV_ARGS+=(-e "WHITELABEL=${WHITELABEL}")
-  [ -n "${HTTP_PORT}" ] && ENV_ARGS+=(-e "FLOXY_HTTP_PORT=${HTTP_PORT}")
-  [ -n "${HTTPS_PORT}" ] && ENV_ARGS+=(-e "FLOXY_HTTPS_PORT=${HTTPS_PORT}")
-  [ -n "${VERSION_FENCE}" ] && ENV_ARGS+=(-e "VERSION_FENCE=${VERSION_FENCE}")
-  [ -n "${VERSION_FLOXY}" ] && ENV_ARGS+=(-e "VERSION_FLOXY=${VERSION_FLOXY}")
+  [ -n "${WHITELABEL}" ] && set -- "$@" -e "WHITELABEL=${WHITELABEL}"
+  [ -n "${HTTP_PORT}" ] && set -- "$@" -e "FLOXY_HTTP_PORT=${HTTP_PORT}"
+  [ -n "${HTTPS_PORT}" ] && set -- "$@" -e "FLOXY_HTTPS_PORT=${HTTPS_PORT}"
+  [ -n "${VERSION_FENCE}" ] && set -- "$@" -e "VERSION_FENCE=${VERSION_FENCE}"
+  [ -n "${VERSION_FLOXY}" ] && set -- "$@" -e "VERSION_FLOXY=${VERSION_FLOXY}"
   if [ -z "${INSTALL_FENCE}" ]; then
     internal_error "INSTALL_FENCE not set in start_flecs"
   fi
-  ENV_ARGS+=(-e "INSTALL_FENCE=${INSTALL_FENCE}")
-  [ -n "${CORE_ENV_PAIRS}" ] && ENV_ARGS+=(-e "FILIP_CORE_ENV=${CORE_ENV_PAIRS}")
-  [ -n "${FLOXY_ENV_PAIRS}" ] && ENV_ARGS+=(-e "FILIP_FLOXY_ENV=${FLOXY_ENV_PAIRS}")
-  [ -n "${WEBAPP_ENV_PAIRS}" ] && ENV_ARGS+=(-e "FILIP_WEBAPP_ENV=${WEBAPP_ENV_PAIRS}")
+  set -- "$@" -e "INSTALL_FENCE=${INSTALL_FENCE}"
+  [ -n "${CORE_ENV_PAIRS}" ] && set -- "$@" -e "FILIP_CORE_ENV=${CORE_ENV_PAIRS}"
+  [ -n "${FLOXY_ENV_PAIRS}" ] && set -- "$@" -e "FILIP_FLOXY_ENV=${FLOXY_ENV_PAIRS}"
+  [ -n "${WEBAPP_ENV_PAIRS}" ] && set -- "$@" -e "FILIP_WEBAPP_ENV=${WEBAPP_ENV_PAIRS}"
   if [ "${INSTALL_OTEL_COLLECTOR}" = "1" ]; then
-    ENV_ARGS+=(-e "INSTALL_OTEL_COLLECTOR=1")
-    ENV_ARGS+=(-e "VERSION_OTEL_COLLECTOR=${VERSION_OTEL_COLLECTOR}")
-    ENV_ARGS+=(-e "OTEL_EXPORT_DESTINATION=${OTEL_EXPORT_DESTINATION}")
+    set -- "$@" -e "INSTALL_OTEL_COLLECTOR=1"
+    set -- "$@" -e "VERSION_OTEL_COLLECTOR=${VERSION_OTEL_COLLECTOR}"
+    set -- "$@" -e "OTEL_EXPORT_DESTINATION=${OTEL_EXPORT_DESTINATION}"
   fi
-  [ -n "${FENCE_ENV_PAIRS}" ] && ENV_ARGS+=(-e "FILIP_FENCE_ENV=${FENCE_ENV_PAIRS}")
+  [ -n "${FENCE_ENV_PAIRS}" ] && set -- "$@" -e "FILIP_FENCE_ENV=${FENCE_ENV_PAIRS}"
   local FILIP_TAG="latest"
   if [ -n "$VERSION_FILIP" ]; then
     FILIP_TAG="$VERSION_FILIP"
@@ -942,7 +942,7 @@ start_flecs() {
   ${DOCKER} image pull ${FILIP_IMAGE}:${FILIP_TAG} 1>${STDOUT} 2>${STDERR} && log_info " ✅" || log_info " ⚠"
   log_info -n "  Starting FLECS..."
   ${DOCKER} container rm -f flecs >/dev/null 2>&1 || true
-  if ! ${DOCKER} container run --detach --name flecs "${ENV_ARGS[@]}" --network host --restart always --volume /run/docker.sock:/run/docker.sock ${FILIP_IMAGE}:${FILIP_TAG} 1>${STDOUT} 2>${STDERR}; then
+  if ! ${DOCKER} container run --detach --name flecs "$@" --network host --restart always --volume /run/docker.sock:/run/docker.sock ${FILIP_IMAGE}:${FILIP_TAG} 1>${STDOUT} 2>${STDERR}; then
     log_info " ❌"
     log_fatal "Failed to start FLECS"
   fi
