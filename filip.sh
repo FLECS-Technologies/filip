@@ -399,10 +399,13 @@ have_program() {
 have() {
   log_debug -n "Looking for ${1}..."
   local TOOL=$(printf '%s' "${1}" | tr 'a-z.-' 'A-Z__')
-  if [ -z "${!TOOL}" ]; then
-    declare -g ${TOOL}=$(have_program "${1}")
+  local VALUE
+  eval "VALUE=\${${TOOL}}"
+  if [ -z "${VALUE}" ]; then
+    VALUE=$(have_program "${1}")
+    eval "${TOOL}=\${VALUE}"
   fi
-  if [ -z "${!TOOL}" ]; then
+  if [ -z "${VALUE}" ]; then
     log_debug -q " not found"
     return 1
   fi
