@@ -11,3 +11,27 @@ jobs:
       channel: dev
       dry-run: true
     secrets: inherit
+  installer-script:
+    name: Test installer script
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Test with bash and dash
+        run: test/run.sh bash dash
+
+      - name: Test with BusyBox ash
+        run: |
+          tar -cf - filip.sh test \
+            | docker run -i --rm alpine:3.22 sh -c 'mkdir /src && cd /src && tar -xf - && test/run.sh'
+
+      # zsh only behaves POSIX-like when invoked as sh
+      - name: Test with zsh as sh
+        run: |
+          tar -cf - filip.sh test \
+            | docker run -i --rm debian:trixie sh -c '
+                apt-get update -qq && apt-get install -y -qq --no-install-recommends zsh >/dev/null &&
+                mkdir /src /zsh-as-sh && ln -s /usr/bin/zsh /zsh-as-sh/sh &&
+                cd /src && tar -xf - && test/run.sh /zsh-as-sh/sh'
