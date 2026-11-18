@@ -62,55 +62,55 @@ print_usage() {
 # some log functions...
 log_debug() {
   if [ -n "${LOG_DEBUG}" ]; then
-    local END='\n'
-    local PREFIX='*** Debug: '
+    _log_end='\n'
+    _log_prefix='*** Debug: '
     while true; do
       case ${1} in
         -n)
-          END=''
+          _log_end=''
           shift
           ;;
         -q)
-          PREFIX=''
+          _log_prefix=''
           shift
           ;;
         *)
           break;;
       esac
     done
-    printf "%s%s${END}" "${PREFIX}" "$*"
+    printf "%s%s${_log_end}" "${_log_prefix}" "$*"
   fi
 }
 log_info() {
-  local END='\n'
+  _log_end='\n'
   while true; do
     case ${1} in
       -n)
-        END=''
+        _log_end=''
         shift
         ;;
       *)
         break;;
     esac
   done
-  printf "%s${END}" "$*"
+  printf "%s${_log_end}" "$*"
 }
 log_warning() {
   printf '⚠  %s\n' "$*" 1>&2
 }
 log_error() {
-  local END='\n'
+  _log_end='\n'
   while true; do
     case ${1} in
       -n)
-        END=''
+        _log_end=''
         shift
         ;;
       *)
         break;;
     esac
   done
-  printf "❌ %s${END}" "$*" 1>&2
+  printf "❌ %s${_log_end}" "$*" 1>&2
 }
 # log_fatal will terminate with exit code 1 after logging
 log_fatal() {
@@ -159,8 +159,8 @@ confirm_yn() {
 # strip an optional leading 'v' and an optional '-codename' suffix from a
 # version number, e.g. v5.2.0-red-deer -> 5.2.0
 strip_version() {
-  local VERSION="${1#v}"
-  printf '%s' "${VERSION%%-*}"
+  _strip_version_result="${1#v}"
+  printf '%s' "${_strip_version_result%%-*}"
 }
 
 # check if a version number has the form X.Y.Z with numeric X, Y and Z
@@ -184,8 +184,8 @@ cmp_less() {
   if [ "${1}" = "${2}" ]; then
     return 1
   fi
-  local RES=$(printf '%s\n%s\n' "${1}" "${2}" | ${SORT} -t . -k 1,1n -k 2,2n -k 3,3n | ${HEAD} -n1)
-  if [ "${RES}" = "${1}" ]; then
+  _cmp_less_res=$(printf '%s\n%s\n' "${1}" "${2}" | ${SORT} -t . -k 1,1n -k 2,2n -k 3,3n | ${HEAD} -n1)
+  if [ "${_cmp_less_res}" = "${1}" ]; then
     return 0
   fi
   return 1
@@ -403,14 +403,13 @@ have_program() {
 # program in uppercase (e.g. CURL=... for curl)
 have() {
   log_debug -n "Looking for ${1}..."
-  local TOOL=$(printf '%s' "${1}" | tr 'a-z.-' 'A-Z__')
-  local VALUE
-  eval "VALUE=\${${TOOL}}"
-  if [ -z "${VALUE}" ]; then
-    VALUE=$(have_program "${1}")
-    eval "${TOOL}=\${VALUE}"
+  _have_tool=$(printf '%s' "${1}" | tr 'a-z.-' 'A-Z__')
+  eval "_have_value=\${${_have_tool}}"
+  if [ -z "${_have_value}" ]; then
+    _have_value=$(have_program "${1}")
+    eval "${_have_tool}=\${_have_value}"
   fi
-  if [ -z "${VALUE}" ]; then
+  if [ -z "${_have_value}" ]; then
     log_debug -q " not found"
     return 1
   fi
@@ -560,15 +559,15 @@ FEDORA_VERSIONS="37 38"
 # print a list of OS versions as passed to verify_os_version with the given
 # log function
 print_os_versions() {
-  local LOG=${1} ENTRY
+  _print_os_versions_log=${1}
   shift
-  for ENTRY in "$@"; do
-    case ${ENTRY} in
+  for _print_os_versions_entry in "$@"; do
+    case ${_print_os_versions_entry} in
       *:*)
-        ${LOG} "    ${ENTRY%%:*} (${ENTRY#*:})"
+        ${_print_os_versions_log} "    ${_print_os_versions_entry%%:*} (${_print_os_versions_entry#*:})"
         ;;
       *)
-        ${LOG} "    ${ENTRY}"
+        ${_print_os_versions_log} "    ${_print_os_versions_entry}"
         ;;
     esac
   done
@@ -580,15 +579,14 @@ verify_os_version() {
     internal_error "OS_VERSION not set in verify_os_version"
   fi
 
-  local ENTRY LATEST
-  for ENTRY in "$@"; do
-    LATEST=${ENTRY%%:*}
-    if [ "${OS_VERSION}" = "${LATEST}" ]; then
+  for _verify_os_version_entry in "$@"; do
+    _verify_os_version_latest=${_verify_os_version_entry%%:*}
+    if [ "${OS_VERSION}" = "${_verify_os_version_latest}" ]; then
       return 0
     fi
   done
 
-  if cmp_less "${LATEST}" "${OS_VERSION}"; then
+  if cmp_less "${_verify_os_version_latest}" "${OS_VERSION}"; then
     log_warning "You are running an unsupported version of your OS. Supported versions are"
     print_os_versions log_warning "$@"
     if [ -n "${CODENAME}" ]; then
@@ -694,8 +692,8 @@ verify_docker_selinux() {
     return 0
   fi
 
-  local SECURITY_OPTIONS=$(${DOCKER} info --format '{{json .SecurityOptions}}' 2>/dev/null)
-  case ${SECURITY_OPTIONS} in
+  _verify_docker_selinux_options=$(${DOCKER} info --format '{{json .SecurityOptions}}' 2>/dev/null)
+  case ${_verify_docker_selinux_options} in
     *name=selinux*)
       log_error "SELinux is enforcing and enabled in the Docker daemon, which prevents FLECS from accessing Docker"
       log_error "This is the case with Fedora's moby-engine package"
@@ -711,15 +709,15 @@ install_docker_debian() {
 
   # Docker is split into docker.io and docker-cli for Debian 13+ and Ubuntu
   # 25.04+. Add to PACKAGE list for these OSes.
-  local PACKAGES="docker.io"
+  _install_docker_debian_packages="docker.io"
   case ${OS} in
     debian|raspbian)
-      ! cmp_less "${OS_VERSION}" "13" && PACKAGES="${PACKAGES} docker-cli" ;;
+      ! cmp_less "${OS_VERSION}" "13" && _install_docker_debian_packages="${_install_docker_debian_packages} docker-cli" ;;
     ubuntu)
-      ! cmp_less "${OS_VERSION}" "25.04" && PACKAGES="${PACKAGES} docker-cli" ;;
+      ! cmp_less "${OS_VERSION}" "25.04" && _install_docker_debian_packages="${_install_docker_debian_packages} docker-cli" ;;
   esac
 
-  if ! apt_install ${PACKAGES}; then
+  if ! apt_install ${_install_docker_debian_packages}; then
     log_fatal "apt_install failed in install_docker"
   fi
 }
@@ -819,14 +817,14 @@ verify_core_version() {
     internal_error "VERSION_CORE not set in verify_core_version"
   fi
 
-  local VERSION=$(strip_version "${VERSION_CORE}")
-  if ! is_plain_version "${VERSION}"; then
+  _verify_core_version_core=$(strip_version "${VERSION_CORE}")
+  if ! is_plain_version "${_verify_core_version_core}"; then
     log_warning "Could not parse FLECS core version ${VERSION_CORE}"
     log_warning "Skipping check for minimum supported version ${MIN_VERSION_CORE}"
     return 0
   fi
 
-  if cmp_less "${VERSION}" "${MIN_VERSION_CORE}"; then
+  if cmp_less "${_verify_core_version_core}" "${MIN_VERSION_CORE}"; then
     log_error "${ME} cannot install FLECS core ${VERSION_CORE}"
     log_error "This installer supports FLECS core ${MIN_VERSION_CORE} and later"
     log_error "To install older versions, use the previous installer instead:"
@@ -842,14 +840,14 @@ verify_otel_core_version() {
     return 0
   fi
 
-  local VERSION=$(strip_version "${VERSION_CORE}")
-  if ! is_plain_version "${VERSION}"; then
+  _verify_otel_core_version_core=$(strip_version "${VERSION_CORE}")
+  if ! is_plain_version "${_verify_otel_core_version_core}"; then
     log_warning "Could not parse FLECS core version ${VERSION_CORE}"
     log_warning "Skipping check for minimum FLECS core version ${MIN_VERSION_CORE_OTEL} for the otel-collector"
     return 0
   fi
 
-  if cmp_less "${VERSION}" "${MIN_VERSION_CORE_OTEL}"; then
+  if cmp_less "${_verify_otel_core_version_core}" "${MIN_VERSION_CORE_OTEL}"; then
     log_error "The otel-collector requires FLECS core ${MIN_VERSION_CORE_OTEL} or later"
     log_fatal "Please install a newer FLECS core version or install FLECS without --install-otel-collector"
   fi
@@ -866,16 +864,16 @@ determine_fence_setup() {
     internal_error "VERSION_CORE not set in determine_fence_setup"
   fi
 
-  local CORE=$(strip_version "${VERSION_CORE}")
+  _determine_fence_setup_core=$(strip_version "${VERSION_CORE}")
 
-  if ! is_plain_version "${CORE}"; then
+  if ! is_plain_version "${_determine_fence_setup_core}"; then
     log_warning "Could not parse FLECS core (${VERSION_CORE}) version."
     log_warning "Falling back to default behaviour: fence will be installed as system container."
     INSTALL_FENCE=1
     return 0
   fi
 
-  if cmp_less "${CORE}" "${REQUIRE_FENCE_FROM_VERSION}"; then
+  if cmp_less "${_determine_fence_setup_core}" "${REQUIRE_FENCE_FROM_VERSION}"; then
     INSTALL_FENCE=0
   else
     INSTALL_FENCE=1
@@ -902,18 +900,19 @@ add_env_pair() {
   # Values may contain any characters via backslash escaping: '\' is encoded
   # as '\\' and ' ' as '\ '. The recipient splits on unescaped spaces and
   # decodes each pair.
-  local REST=${2} CHUNK ESCAPED=""
-  while [ -n "${REST}" ]; do
+  _add_env_pair_rest=${2}
+  _add_env_pair_escaped=""
+  while [ -n "${_add_env_pair_rest}" ]; do
     # copy everything up to the next '\' or ' ', then that character escaped
-    CHUNK=${REST%%[\\ ]*}
-    ESCAPED="${ESCAPED}${CHUNK}"
-    REST=${REST#"${CHUNK}"}
-    if [ -n "${REST}" ]; then
-      ESCAPED="${ESCAPED}\\${REST%"${REST#?}"}"
-      REST=${REST#?}
+    _add_env_pair_chunk=${_add_env_pair_rest%%[\\ ]*}
+    _add_env_pair_escaped="${_add_env_pair_escaped}${_add_env_pair_chunk}"
+    _add_env_pair_rest=${_add_env_pair_rest#"${_add_env_pair_chunk}"}
+    if [ -n "${_add_env_pair_rest}" ]; then
+      _add_env_pair_escaped="${_add_env_pair_escaped}\\${_add_env_pair_rest%"${_add_env_pair_rest#?}"}"
+      _add_env_pair_rest=${_add_env_pair_rest#?}
     fi
   done
-  eval "${1}=\"\${${1}:+\${${1}} }\${ESCAPED}\""
+  eval "${1}=\"\${${1}:+\${${1}} }\${_add_env_pair_escaped}\""
 }
 
 start_flecs() {
@@ -941,17 +940,17 @@ start_flecs() {
     set -- "$@" -e "OTEL_EXPORT_DESTINATION=${OTEL_EXPORT_DESTINATION}"
   fi
   [ -n "${FENCE_ENV_PAIRS}" ] && set -- "$@" -e "FILIP_FENCE_ENV=${FENCE_ENV_PAIRS}"
-  local FILIP_TAG="latest"
+  _start_flecs_tag="latest"
   if [ -n "$VERSION_FILIP" ]; then
-    FILIP_TAG="$VERSION_FILIP"
+    _start_flecs_tag="$VERSION_FILIP"
   elif [ "$DEV_MODE" = "1" ]; then
-    FILIP_TAG="dev"
+    _start_flecs_tag="dev"
   fi
   log_info -n "  Pulling latest image..."
-  ${DOCKER} image pull ${FILIP_IMAGE}:${FILIP_TAG} 1>${STDOUT} 2>${STDERR} && log_info " ✅" || log_info " ⚠"
+  ${DOCKER} image pull ${FILIP_IMAGE}:${_start_flecs_tag} 1>${STDOUT} 2>${STDERR} && log_info " ✅" || log_info " ⚠"
   log_info -n "  Starting FLECS..."
   ${DOCKER} container rm -f flecs >/dev/null 2>&1 || true
-  if ! ${DOCKER} container run --detach --name flecs "$@" --network host --restart always --volume /run/docker.sock:/run/docker.sock ${FILIP_IMAGE}:${FILIP_TAG} 1>${STDOUT} 2>${STDERR}; then
+  if ! ${DOCKER} container run --detach --name flecs "$@" --network host --restart always --volume /run/docker.sock:/run/docker.sock ${FILIP_IMAGE}:${_start_flecs_tag} 1>${STDOUT} 2>${STDERR}; then
     log_info " ❌"
     log_fatal "Failed to start FLECS"
   fi

@@ -55,11 +55,11 @@ test_functions_have() {
     have sort && printf "SORT=%s\n" "${SORT##*/}"
     have no-such.tool-x || printf "NO_SUCH_TOOL_X=[%s]\n" "${NO_SUCH_TOOL_X}"
     CAT=preset; have cat; printf "CAT=%s\n" "${CAT}"
-    f() { local TOOL=other; have tr; }; f; printf "TR=%s\n" "${TR##*/}"')
+    TOOL=other; have tr; printf "TR=%s TOOL=%s\n" "${TR##*/}" "${TOOL}"')
   assert_eq 'SORT=sort
 NO_SUCH_TOOL_X=[]
 CAT=preset
-TR=tr' "${OUTPUT}"
+TR=tr TOOL=other' "${OUTPUT}"
 }
 
 test_functions_log_prints_literally() {
